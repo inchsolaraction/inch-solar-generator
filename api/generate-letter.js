@@ -134,10 +134,24 @@ module.exports = async (req, res) => {
     console.log('Received webhook from Tally');
     
     // Extract form data from Tally webhook
-    const formData = req.body.data || req.body;
+    const webhookData = req.body.data || req.body;
     
-    // Debug: Log all field names to help troubleshoot
-    console.log('Available fields:', Object.keys(formData).join(', '));
+    // Tally sends data in a nested 'fields' array
+    const fields = webhookData.fields || [];
+    
+    // Convert Tally fields array to a simple object
+    const formData = {};
+    fields.forEach(field => {
+      if (field.key && field.value !== undefined) {
+        formData[field.key] = field.value;
+        // Also store by label for easier access
+        if (field.label) {
+          formData[field.label] = field.value;
+        }
+      }
+    });
+    
+    console.log('Extracted field keys:', Object.keys(formData).join(', '));
     
     // Extract basic fields - handle multiple possible field name formats
     const firstName = cleanText(formData.first_name || formData['First Name'] || formData.firstName || '');
@@ -153,9 +167,11 @@ module.exports = async (req, res) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
       console.error('Invalid email format:', email);
+      console.error('Available form data:', JSON.stringify(formData, null, 2));
       return res.status(400).json({
         error: 'Invalid email address',
-        message: 'Please provide a valid email address'
+        message: 'Please provide a valid email address',
+        debug: Object.keys(formData)
       });
     }
     
