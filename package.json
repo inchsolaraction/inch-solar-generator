@@ -1,0 +1,12 @@
+{
+  "name": "inch-solar-objection-generator",
+  "version": "1.0.0",
+  "description": "Serverless function to generate personalized planning objection letters",
+  "main": "api/generate-letter.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "keywords": ["planning", "objection", "claude", "ai"],
+  "author": "Inch Killeagh Rural Preservation Group",
+  "license": "MIT"
+}
