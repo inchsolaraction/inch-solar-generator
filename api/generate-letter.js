@@ -80,14 +80,47 @@ function buildCommitteeContext(concerns) {
   return context;
 }
 
-// Send email via Gmail SMTP (using nodemailer simulation with raw SMTP)
-async function sendEmail(to, subject, body) {
-  // For Vercel, we'll use a simple HTTP email API instead of SMTP
-  // This is a placeholder - in production use Resend or SendGrid
-  console.log(`Email would be sent to: ${to}`);
-  console.log(`Subject: ${subject}`);
-  console.log(`Body length: ${body.length} chars`);
-  return { success: true, message: 'Email sent (simulated)' };
+// Send email via Resend API
+async function sendEmail(to, subject, htmlBody, textBody) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  
+  if (!resendApiKey) {
+    console.log('RESEND_API_KEY not configured - email not sent');
+    console.log(`Would send to: ${to}`);
+    console.log(`Subject: ${subject}`);
+    return { success: false, message: 'Email API key not configured' };
+  }
+  
+  try {
+    const emailData = JSON.stringify({
+      from: 'Inch Community <onboarding@resend.dev>', // Will use Resend's domain for now
+      to: [to],
+      subject: subject,
+      html: htmlBody,
+      text: textBody
+    });
+    
+    const response = await makeRequest(
+      {
+        hostname: 'api.resend.com',
+        path: '/emails',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Length': Buffer.byteLength(emailData)
+        }
+      },
+      emailData
+    );
+    
+    console.log('Email sent successfully via Resend');
+    return { success: true, message: 'Email sent', id: response.id };
+    
+  } catch (error) {
+    console.error('Failed to send email:', error.message);
+    return { success: false, message: error.message };
+  }
 }
 
 // Main handler function
@@ -241,8 +274,67 @@ Generate the complete letter now.`;
     const generatedLetter = claudeResponse.content[0].text;
     console.log('Letter generated successfully');
     
-    // Build email body
-    const emailBody = `Dear ${firstName},
+    // Build email body (HTML version)
+    const emailBodyHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .letter-box { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+    .instructions { background: #e8f4f8; border-left: 4px solid #0066cc; padding: 15px; margin: 20px 0; }
+    .instructions h3 { margin-top: 0; color: #0066cc; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 14px; color: #666; }
+    pre { white-space: pre-wrap; font-family: Arial, sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Your Personalized Objection Letter</h2>
+    
+    <p>Dear ${firstName},</p>
+    
+    <p>Thank you for using the Inch Solar Development Submission Generator created by the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
+    
+    <p>Below is your personalized objection letter based on your concerns and incorporating verified facts about the development compiled by our committee.</p>
+    
+    <p><strong>Please review it carefully, make any personal edits you wish, and submit it to Cork County Council.</strong></p>
+    
+    <div class="letter-box">
+      <pre>${generatedLetter}</pre>
+    </div>
+    
+    <div class="instructions">
+      <h3>📋 HOW TO SUBMIT YOUR OBJECTION:</h3>
+      <ol>
+        <li>Copy the letter above</li>
+        <li>Submit online at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a> (preferred method)<br>
+            OR send by post to the address shown in the letter</li>
+        <li>You will need to pay a <strong>€20 submission fee</strong></li>
+        <li>Ensure you include the planning reference number when it becomes available</li>
+        <li>Submit <strong>within 35 days</strong> of the planning application being lodged</li>
+      </ol>
+      
+      <h4>⚠️ IMPORTANT NOTES:</h4>
+      <ul>
+        <li>Your submission must include your name and full correspondence address</li>
+        <li>Focus on planning considerations only (as shown in the letter)</li>
+        <li>You may attach photos, maps, or other supporting documents</li>
+        <li>All submissions become public documents</li>
+      </ul>
+    </div>
+    
+    <div class="footer">
+      <p>For more information and updates, contact the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
+      <p><em>In solidarity,<br>Inch Killeagh Rural Preservation Group</em></p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    // Build plain text version
+    const emailBodyText = `Dear ${firstName},
 
 Thank you for using the Inch Solar Development Submission Generator created by the Inch Killeagh Rural Preservation Group.
 
@@ -258,7 +350,7 @@ ${generatedLetter}
 
 HOW TO SUBMIT YOUR OBJECTION:
 
-1. Copy the letter above (or download the attachment if provided)
+1. Copy the letter above
 2. Submit online at: www.corkcoco.ie (preferred method)
    OR send by post to the address shown in the letter
 3. You will need to pay a €20 submission fee
@@ -276,15 +368,22 @@ For more information and updates, contact the Inch Killeagh Rural Preservation G
 In solidarity,
 Inch Killeagh Rural Preservation Group`;
 
-    // Send email (placeholder - will implement with Resend or SendGrid)
-    // await sendEmail(email, 'Your Personalized Objection - Inch Solar Development', emailBody);
+    // Send email via Resend
+    console.log('Sending email to:', email);
+    const emailResult = await sendEmail(
+      email, 
+      'Your Personalized Objection - Inch Solar Development',
+      emailBodyHtml,
+      emailBodyText
+    );
     
     // Return success response
     return res.status(200).json({
       success: true,
-      message: 'Letter generated successfully',
+      message: 'Letter generated and email sent successfully',
       letter: generatedLetter,
       email_sent_to: email,
+      email_status: emailResult,
       version: '0.2-draft'
     });
     
