@@ -136,13 +136,32 @@ module.exports = async (req, res) => {
     // Extract form data from Tally webhook
     const formData = req.body.data || req.body;
     
-    // Extract basic fields
-    const firstName = cleanText(formData.first_name || formData['First Name'] || '');
-    const lastName = cleanText(formData.last_name || formData['Last name'] || '');
-    const email = cleanText(formData.email || formData['Email'] || '');
-    const distance = cleanText(formData.distance || '');
-    const houseNumber = cleanText(formData.house_number || '');
-    const occupation = cleanText(formData.occupation || '');
+    // Debug: Log all field names to help troubleshoot
+    console.log('Available fields:', Object.keys(formData).join(', '));
+    
+    // Extract basic fields - handle multiple possible field name formats
+    const firstName = cleanText(formData.first_name || formData['First Name'] || formData.firstName || '');
+    const lastName = cleanText(formData.last_name || formData['Last name'] || formData.lastName || '');
+    
+    // Extract and validate email
+    let email = formData.email || formData['Email'] || formData.emailAddress || '';
+    
+    // Clean email - remove any extra spaces, newlines, or special chars
+    email = String(email).trim().toLowerCase();
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      console.error('Invalid email format:', email);
+      return res.status(400).json({
+        error: 'Invalid email address',
+        message: 'Please provide a valid email address'
+      });
+    }
+    
+    const distance = cleanText(formData.distance || formData['How close do you live to the proposed development site?'] || '');
+    const houseNumber = cleanText(formData.house_number || formData['Can you find your house number on the map?'] || '');
+    const occupation = cleanText(formData.occupation || formData['What do you work at?'] || '');
     
     // Extract concern fields (cleaned)
     const concerns = {
