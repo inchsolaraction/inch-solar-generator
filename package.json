@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Serverless function to generate personalized planning objection letters",
   "main": "api/generate-letter.js",
+  "dependencies": {
+    "docx": "^8.5.0",
+    "dropbox": "^10.34.0"
+  },
   "scripts": {
     "test": "echo \"No tests yet\""
   },
