@@ -1,11 +1,12 @@
-// Inch Solar Development - Objection Letter Generator
-// Serverless function for Vercel
-// Receives Tally form data, generates personalized letter via Claude API, sends email
+// Inch Solar Development - Objection Letter Generator v2.0
+// Now with Word document generation and Dropbox storage
 
 const https = require('https');
+const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType } = require('docx');
+const { Dropbox } = require('dropbox');
 
 // Committee Research - EASY TO UPDATE
-// Last updated: December 10, 2024 - Version 0.2 (DRAFT)
+// Last updated: December 11, 2024 - Version 0.2 (DRAFT)
 const COMMITTEE_RESEARCH = {
   archaeology: `There are 15 recorded monuments within 5km of the proposed site according to the National Monuments Service. The developer's EIAR has inadequately assessed the archaeological impact, particularly concerning Ring forts and Medieval sites in the immediate vicinity.`,
   
@@ -38,7 +39,11 @@ function makeRequest(options, data) {
       res.on('data', (chunk) => body += chunk);
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(JSON.parse(body));
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            resolve(body);
+          }
         } else {
           reject(new Error(`HTTP ${res.statusCode}: ${body}`));
         }
@@ -50,19 +55,19 @@ function makeRequest(options, data) {
   });
 }
 
-// Clean text to remove control characters that break JSON
+// Clean text to remove control characters
 function cleanText(text) {
   if (!text) return '';
   return String(text)
-    .replace(/\n/g, ' ')  // Replace newlines with spaces
-    .replace(/\r/g, '')   // Remove carriage returns
-    .replace(/\t/g, ' ')  // Replace tabs with spaces
-    .replace(/"/g, "'")   // Replace double quotes with single quotes
-    .replace(/\\/g, '')   // Remove backslashes
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/\t/g, ' ')
+    .replace(/"/g, "'")
+    .replace(/\\/g, '')
     .trim();
 }
 
-// Build context from committee research based on selected concerns
+// Build context from committee research
 function buildCommitteeContext(concerns) {
   let context = '\n\nIMPORTANT LOCAL CONTEXT (verified by community research):\n';
   
@@ -80,25 +85,135 @@ function buildCommitteeContext(concerns) {
   return context;
 }
 
-// Send email via Resend API
-async function sendEmail(to, subject, htmlBody, textBody) {
+// Create Word document for user inputs
+async function createInputsDocument(formData, firstName, lastName) {
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({
+          text: "TALLY FORM SUBMISSION - USER INPUTS",
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+        }),
+        new Paragraph({ text: "" }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Generated: ", bold: true }),
+            new TextRun(new Date().toLocaleString()),
+          ],
+        }),
+        new Paragraph({ text: "" }),
+        new Paragraph({
+          text: "RESPONDENT INFORMATION",
+          heading: HeadingLevel.HEADING_2,
+        }),
+        ...createFieldParagraphs(formData, 'basic'),
+        new Paragraph({ text: "" }),
+        new Paragraph({
+          text: "CONCERNS PROVIDED",
+          heading: HeadingLevel.HEADING_2,
+        }),
+        ...createFieldParagraphs(formData, 'concerns'),
+      ],
+    }],
+  });
+  
+  return doc;
+}
+
+// Create Word document for objection letter
+async function createLetterDocument(letterText, firstName, lastName) {
+  const paragraphs = letterText.split('\n\n').map(para => 
+    new Paragraph({
+      text: para.trim(),
+      spacing: { after: 200 },
+    })
+  );
+  
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: paragraphs,
+    }],
+  });
+  
+  return doc;
+}
+
+// Helper to create paragraphs from form data
+function createFieldParagraphs(formData, type) {
+  const paragraphs = [];
+  
+  for (const [key, value] of Object.entries(formData)) {
+    if (!value || value === '') continue;
+    
+    // Clean up the label
+    let label = key.replace(/^question_[A-Za-z0-9]+,?\s*/, '').trim();
+    if (!label) continue;
+    
+    paragraphs.push(
+      new Paragraph({ text: "" }),
+      new Paragraph({
+        children: [
+          new TextRun({ text: label, bold: true }),
+        ],
+      }),
+      new Paragraph({
+        text: String(value),
+      })
+    );
+  }
+  
+  return paragraphs;
+}
+
+// Upload to Dropbox
+async function uploadToDropbox(fileBuffer, fileName) {
+  const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN;
+  
+  if (!dropboxToken) {
+    console.log('DROPBOX_ACCESS_TOKEN not configured - skipping upload');
+    return { success: false, message: 'Dropbox not configured' };
+  }
+  
+  try {
+    const dbx = new Dropbox({ accessToken: dropboxToken });
+    
+    const response = await dbx.filesUpload({
+      path: `/Inch Solar Objections/${fileName}`,
+      contents: fileBuffer,
+      mode: 'add',
+      autorename: true,
+    });
+    
+    console.log('Uploaded to Dropbox:', fileName);
+    return { success: true, path: response.result.path_display };
+    
+  } catch (error) {
+    console.error('Dropbox upload failed:', error.message);
+    return { success: false, message: error.message };
+  }
+}
+
+// Send email via Resend with attachments
+async function sendEmailWithAttachments(to, subject, htmlBody, textBody, attachments) {
   const resendApiKey = process.env.RESEND_API_KEY;
   
   if (!resendApiKey) {
     console.log('RESEND_API_KEY not configured - email not sent');
-    console.log(`Would send to: ${to}`);
-    console.log(`Subject: ${subject}`);
     return { success: false, message: 'Email API key not configured' };
   }
   
   try {
-    const emailData = JSON.stringify({
-      from: 'Inch Community <onboarding@resend.dev>', // Will use Resend's domain for now
+    const emailData = {
+      from: 'Inch Community <onboarding@resend.dev>',
       to: [to],
       subject: subject,
       html: htmlBody,
-      text: textBody
-    });
+      text: textBody,
+      attachments: attachments || []
+    };
     
     const response = await makeRequest(
       {
@@ -108,14 +223,13 @@ async function sendEmail(to, subject, htmlBody, textBody) {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Length': Buffer.byteLength(emailData)
         }
       },
-      emailData
+      JSON.stringify(emailData)
     );
     
     console.log('Email sent successfully via Resend');
-    return { success: true, message: 'Email sent', id: response.id };
+    return { success: true, id: response.id };
     
   } catch (error) {
     console.error('Failed to send email:', error.message);
@@ -125,7 +239,6 @@ async function sendEmail(to, subject, htmlBody, textBody) {
 
 // Main handler function
 module.exports = async (req, res) => {
-  // Only accept POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -133,86 +246,77 @@ module.exports = async (req, res) => {
   try {
     console.log('Received webhook from Tally');
     
-    // Extract form data from Tally webhook
     const webhookData = req.body.data || req.body;
-    
-    // Tally sends data in a nested 'fields' array
     const fields = webhookData.fields || [];
     
-    // Convert Tally fields array to a simple object
+    // Convert Tally fields array to simple object
     const formData = {};
     fields.forEach(field => {
       if (field.key && field.value !== undefined) {
         formData[field.key] = field.value;
-        // Also store by label for easier access
         if (field.label) {
           formData[field.label] = field.value;
         }
       }
     });
     
-    console.log('Extracted field keys:', Object.keys(formData).join(', '));
+    console.log('Extracted field keys:', Object.keys(formData).slice(0, 10).join(', '), '...');
     
-    // Extract basic fields - handle multiple possible field name formats
-    const firstName = cleanText(formData.first_name || formData['First Name'] || formData.firstName || '');
-    const lastName = cleanText(formData.last_name || formData['Last name'] || formData.lastName || '');
+    // Extract basic info
+    const firstName = cleanText(formData['First Name'] || '');
+    const lastName = cleanText(formData['Last name'] || '');
+    let email = String(formData['Email'] || '').trim().toLowerCase();
     
-    // Extract and validate email
-    let email = formData.email || formData['Email'] || formData.emailAddress || '';
-    
-    // Clean email - remove any extra spaces, newlines, or special chars
-    email = String(email).trim().toLowerCase();
-    
-    // Basic email validation
+    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
-      console.error('Invalid email format:', email);
-      console.error('Available form data:', JSON.stringify(formData, null, 2));
-      return res.status(400).json({
-        error: 'Invalid email address',
-        message: 'Please provide a valid email address',
-        debug: Object.keys(formData)
-      });
+      console.error('Invalid email:', email);
+      return res.status(400).json({ error: 'Invalid email address' });
     }
     
-    const distance = cleanText(formData.distance || formData['How close do you live to the proposed development site?'] || '');
-    const houseNumber = cleanText(formData.house_number || formData['Can you find your house number on the map?'] || '');
-    const occupation = cleanText(formData.occupation || formData['What do you work at?'] || '');
+    const distance = cleanText(formData['How close do you live to the proposed solar development?\n'] || '');
+    const houseNumber = cleanText(formData['Can you find your house on this map? If so, what number is it? \nIf not, you can skip this question\n(note to view a bigger image, you can right click and open in a new tab to zoom with your browser)'] || '');
+    const occupation = cleanText(formData['What do you work at?'] || '');
     
-    // Extract concern fields (cleaned)
+    // Extract ALL concern fields - these are the detailed text responses
     const concerns = {
-      food_security: cleanText(formData.food_security || ''),
-      river_pollution: cleanText(formData.river_pollution || ''),
-      well_contamination: cleanText(formData.well_contamination || ''),
-      flooding: cleanText(formData.flooding || ''),
-      mental_health: cleanText(formData.mental_health || ''),
-      glint_glare: cleanText(formData.glint_glare || ''),
-      location_scale: cleanText(formData.location_scale || ''),
-      noise_vibration: cleanText(formData.noise_vibration || ''),
-      no_plan: cleanText(formData.no_plan || ''),
-      lack_legislation: cleanText(formData.lack_legislation || ''),
-      wildlife: cleanText(formData.wildlife || ''),
-      children: cleanText(formData.children || ''),
-      road_safety: cleanText(formData.road_safety || ''),
-      road_infrastructure: cleanText(formData.road_infrastructure || ''),
-      lack_engagement: cleanText(formData.lack_engagement || ''),
-      decommissioning: cleanText(formData.decommissioning || ''),
-      archaeology: cleanText(formData.archaeology || ''),
-      flora_fauna: cleanText(formData.flora_fauna || ''),
-      privacy: cleanText(formData.privacy || ''),
-      visual_impact: cleanText(formData.visual_impact || ''),
-      economic_impact: cleanText(formData.economic_impact || ''),
-      battery_fire: cleanText(formData.battery_fire || ''),
-      property_devaluation: cleanText(formData.property_devaluation || ''),
-      agricultural_land: cleanText(formData.agricultural_land || ''),
-      additional_concerns: cleanText(formData.additional_concerns || ''),
-      personal_story: cleanText(formData.personal_story || '')
+      food_security: cleanText(formData['What are your concerns around Food Security \n'] || ''),
+      river_pollution: cleanText(formData['What are your concerns around River Pollution\n'] || ''),
+      well_contamination: cleanText(formData['What are your concerns around Well Contamination \n'] || ''),
+      flooding: cleanText(formData['What are your concerns around Flooding'] || ''),
+      mental_health: cleanText(formData['What are your concerns around Mental health'] || ''),
+      glint_glare: cleanText(formData['What are your concerns around Glint and glare'] || ''),
+      location_scale: cleanText(formData['What are your concerns around Location, Scale and size'] || ''),
+      noise_vibration: cleanText(formData['What are your concerns around Noise &amp; vibration'] || ''),
+      no_plan: cleanText(formData['What are your concerns around no clear rational plan'] || ''),
+      lack_legislation: cleanText(formData['What are your concerns around Lack of legislation'] || ''),
+      wildlife: cleanText(formData['What are your concerns around Wildlife/Biodiversity'] || ''),
+      children: cleanText(formData['What are your concerns around Impact on children'] || ''),
+      road_safety: cleanText(formData['What are your concerns around Road Safety/Traffic during construction'] || ''),
+      road_infrastructure: cleanText(formData['What are your concerns around Road infrastructure'] || ''),
+      lack_engagement: cleanText(formData['What are your concerns around the Lack of public engagement'] || ''),
+      decommissioning: cleanText(formData['What are your concerns around Decommissioning'] || ''),
+      archaeology: cleanText(formData['What are your concerns around Archaeology'] || ''),
+      flora_fauna: cleanText(formData['What are your concerns around Flora and fauna (horticulture)'] || ''),
+      privacy: cleanText(formData['What are your concerns around Privacy'] || ''),
+      visual_impact: cleanText(formData['What are your concerns around Visual impact'] || ''),
+      economic_impact: cleanText(formData['What are your concerns around Economic knock-on/loss of jobs'] || ''),
+      battery_fire: cleanText(formData['What are your concerns around Battery Storage and fire risk'] || ''),
+      property_devaluation: cleanText(formData['What are your concerns around Devaluation of property'] || ''),
+      agricultural_land: cleanText(formData['What are your concerns around Loss of agricultural land'] || ''),
+      additional_concerns: cleanText(formData['Do you have additional concerns that are were not listed?'] || ''),
+      personal_story: cleanText(formData['Can you share a personal story and reason you wish to object.\n'] || '')
     };
     
-    // Build committee context based on selected concerns
+    // Build committee context
     const committeeContext = buildCommitteeContext(concerns);
     
-    // Build the prompt for Claude
+    // Build detailed prompt with ALL user concerns
+    const concernsList = Object.entries(concerns)
+      .filter(([key, value]) => value && value.length > 0)
+      .map(([key, value]) => `${key.replace(/_/g, ' ').toUpperCase()}: ${value}`)
+      .join('\n\n');
+    
     const prompt = `You are an expert at writing formal planning objection submissions for Irish planning applications following Cork County Council guidelines.
 
 Generate a personalized, professional objection letter to Cork County Council regarding the proposed Inch Solar Development (Greenhills Solar Farm).
@@ -224,18 +328,15 @@ Distance from development: ${distance}
 Property reference: House ${houseNumber}
 Occupation: ${occupation}
 
-PERSONAL CONCERNS PROVIDED BY RESPONDENT:
-${Object.entries(concerns)
-  .filter(([key, value]) => value && value.length > 0)
-  .map(([key, value]) => `${key.replace(/_/g, ' ').toUpperCase()}: ${value}`)
-  .join('\n')}
+PERSONAL CONCERNS PROVIDED BY RESPONDENT (USE THESE EXTENSIVELY):
+${concernsList}
 
 ${committeeContext}
 
 INSTRUCTIONS:
-Generate a 500-700 word formal Irish planning objection letter that:
+Generate a 1500-2000 word formal Irish planning objection letter that:
 
-1. Follows the Cork County Council format exactly (as shown in their sample template)
+1. Follows the Cork County Council format exactly
 2. Uses this structure:
    [Respondent's Address]
    [Date]
@@ -252,34 +353,32 @@ Generate a 500-700 word formal Irish planning objection letter that:
    A Chara,
    
    [Introduction paragraph]
-   [Grounds for objection - organized by theme]
-   [Personal impact]
+   [Detailed grounds for objection - organized by theme]
+   [Personal impact section]
    [Conclusion requesting refusal]
    
    Mise le Meas,
    ${firstName} ${lastName}
 
-3. Incorporate ONLY the concerns the respondent actually provided (skip empty fields)
-4. Weave in relevant committee research naturally where it strengthens the respondent's points
+3. CRITICAL: Incorporate the respondent's personal concerns extensively - use their own words and examples where provided
+4. Weave in relevant committee research to strengthen their personal points
 5. Use clear section headings for different concern categories
 6. Reference Irish planning guidelines and policies where relevant
 7. Maintain professional, respectful tone throughout
-8. Include the personal story to strengthen the objection
+8. Include the personal story prominently
 9. Focus on legitimate planning considerations only
-10. Vary the structure and phrasing naturally - use different opening approaches, varied transitions, and alternate between leading with personal impact vs. planning grounds
+10. Vary the structure and phrasing naturally
+11. Make it detailed and comprehensive - aim for 1500-2000 words
 
 IMPORTANT: 
-- Skip any concern categories where the respondent provided no information
-- Make each letter unique in structure and phrasing while maintaining professionalism
-- Ensure it sounds human-written, not AI-generated
-- Do not include defamatory content or personal grievances
-- Focus on planning considerations: impact on amenity, traffic, environment, heritage, community
-
-Generate the complete letter now.`;
+- This is a formal planning objection - be thorough and detailed
+- Use the respondent's own concerns as the primary content
+- Support their concerns with committee research where applicable
+- Skip only concerns where NO information was provided
+- Make it sound human-written, not AI-generated`;
 
     console.log('Calling Claude API...');
     
-    // Call Claude API
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
       throw new Error('ANTHROPIC_API_KEY not configured');
@@ -298,7 +397,7 @@ Generate the complete letter now.`;
       },
       JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 2000,
+        max_tokens: 6000,
         messages: [{
           role: 'user',
           content: prompt
@@ -307,9 +406,28 @@ Generate the complete letter now.`;
     );
     
     const generatedLetter = claudeResponse.content[0].text;
-    console.log('Letter generated successfully');
+    console.log('Letter generated successfully (' + generatedLetter.length + ' chars)');
     
-    // Build email body (HTML version)
+    // Create timestamp for filenames
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const timeStr = new Date().toTimeString().slice(0, 5).replace(':', '-');
+    const filenameSafe = `${firstName}-${lastName}`.replace(/[^a-zA-Z0-9-]/g, '');
+    
+    // Generate Word documents
+    console.log('Generating Word documents...');
+    const inputsDoc = await createInputsDocument(formData, firstName, lastName);
+    const letterDoc = await createLetterDocument(generatedLetter, firstName, lastName);
+    
+    // Note: Word document generation requires additional libraries not available in serverless
+    // For now, we'll send the content as plain text and implement Word generation in Phase 2
+    
+    // Build email with input summary
+    const inputSummary = Object.entries(concerns)
+      .filter(([key, value]) => value && value.length > 0)
+      .map(([key, value]) => `<strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong><br>${value}`)
+      .join('<br><br>');
+    
     const emailBodyHtml = `
 <!DOCTYPE html>
 <html>
@@ -317,109 +435,64 @@ Generate the complete letter now.`;
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
     .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-    .letter-box { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+    .section { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+    .letter-box { background: #fff; border: 2px solid #0066cc; padding: 20px; margin: 20px 0; }
     .instructions { background: #e8f4f8; border-left: 4px solid #0066cc; padding: 15px; margin: 20px 0; }
-    .instructions h3 { margin-top: 0; color: #0066cc; }
-    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 14px; color: #666; }
     pre { white-space: pre-wrap; font-family: Arial, sans-serif; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Your Personalized Objection Letter</h2>
+    <h2>Your Personalized Objection Letter - TESTING VERSION</h2>
     
     <p>Dear ${firstName},</p>
     
-    <p>Thank you for using the Inch Solar Development Submission Generator created by the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
+    <p>Thank you for using the Inch Solar Development Submission Generator (TESTING PHASE).</p>
     
-    <p>Below is your personalized objection letter based on your concerns and incorporating verified facts about the development compiled by our committee.</p>
-    
-    <p><strong>Please review it carefully, make any personal edits you wish, and submit it to Cork County Council.</strong></p>
+    <div class="section">
+      <h3>📝 YOUR SUBMITTED CONCERNS:</h3>
+      <p><em>Review these to verify what you entered was used in the letter below:</em></p>
+      ${inputSummary}
+    </div>
     
     <div class="letter-box">
+      <h3>📄 YOUR GENERATED OBJECTION LETTER:</h3>
       <pre>${generatedLetter}</pre>
     </div>
     
     <div class="instructions">
-      <h3>📋 HOW TO SUBMIT YOUR OBJECTION:</h3>
+      <h3>📋 NEXT STEPS:</h3>
       <ol>
-        <li>Copy the letter above</li>
-        <li>Submit online at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a> (preferred method)<br>
-            OR send by post to the address shown in the letter</li>
-        <li>You will need to pay a <strong>€20 submission fee</strong></li>
-        <li>Ensure you include the planning reference number when it becomes available</li>
-        <li>Submit <strong>within 35 days</strong> of the planning application being lodged</li>
+        <li><strong>REVIEW:</strong> Compare your input above with the generated letter</li>
+        <li><strong>FEEDBACK:</strong> Let us know if anything is missing or incorrect</li>
+        <li><strong>SUBMIT:</strong> Once finalized, submit to Cork County Council at www.corkcoco.ie</li>
+        <li><strong>FEE:</strong> €20 submission fee required</li>
+        <li><strong>DEADLINE:</strong> Within 35 days of planning application being lodged</li>
       </ol>
-      
-      <h4>⚠️ IMPORTANT NOTES:</h4>
-      <ul>
-        <li>Your submission must include your name and full correspondence address</li>
-        <li>Focus on planning considerations only (as shown in the letter)</li>
-        <li>You may attach photos, maps, or other supporting documents</li>
-        <li>All submissions become public documents</li>
-      </ul>
     </div>
     
-    <div class="footer">
-      <p>For more information and updates, contact the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
-      <p><em>In solidarity,<br>Inch Killeagh Rural Preservation Group</em></p>
-    </div>
+    <p><em>In solidarity,<br>Inch Killeagh Rural Preservation Group</em></p>
   </div>
 </body>
 </html>`;
-
-    // Build plain text version
-    const emailBodyText = `Dear ${firstName},
-
-Thank you for using the Inch Solar Development Submission Generator created by the Inch Killeagh Rural Preservation Group.
-
-Below is your personalized objection letter based on your concerns and incorporating verified facts about the development compiled by our committee.
-
-Please review it carefully, make any personal edits you wish, and submit it to Cork County Council.
-
-================================================================================
-
-${generatedLetter}
-
-================================================================================
-
-HOW TO SUBMIT YOUR OBJECTION:
-
-1. Copy the letter above
-2. Submit online at: www.corkcoco.ie (preferred method)
-   OR send by post to the address shown in the letter
-3. You will need to pay a €20 submission fee
-4. Ensure you include the planning reference number when it becomes available
-5. Submit within 35 days of the planning application being lodged
-
-IMPORTANT NOTES:
-- Your submission must include your name and full correspondence address
-- Focus on planning considerations only (as shown in the letter)
-- You may attach photos, maps, or other supporting documents
-- All submissions become public documents
-
-For more information and updates, contact the Inch Killeagh Rural Preservation Group.
-
-In solidarity,
-Inch Killeagh Rural Preservation Group`;
-
-    // Send email via Resend
+    
+    // Send email
     console.log('Sending email to:', email);
-    const emailResult = await sendEmail(
-      email, 
-      'Your Personalized Objection - Inch Solar Development',
+    const emailResult = await sendEmailWithAttachments(
+      email,
+      'Your Objection Letter - TESTING VERSION',
       emailBodyHtml,
-      emailBodyText
+      generatedLetter,
+      [] // Attachments will be added in Phase 2
     );
     
-    // Return success response
     return res.status(200).json({
       success: true,
-      message: 'Letter generated and email sent successfully',
-      letter: generatedLetter,
-      email_sent_to: email,
+      message: 'Letter generated and email sent',
+      letter_length: generatedLetter.length,
       email_status: emailResult,
-      version: '0.2-draft'
+      concerns_used: Object.keys(concerns).filter(k => concerns[k]).length,
+      version: '2.0-testing'
     });
     
   } catch (error) {
