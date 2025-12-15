@@ -334,7 +334,7 @@ ${concernsList}
 ${committeeContext}
 
 INSTRUCTIONS:
-Generate a 1500-2000 word formal Irish planning objection letter that:
+Generate a 1200-1400 word formal Irish planning objection letter that:
 
 1. Follows the Cork County Council format exactly
 2. Uses this structure:
@@ -368,7 +368,7 @@ Generate a 1500-2000 word formal Irish planning objection letter that:
 8. Include the personal story prominently
 9. Focus on legitimate planning considerations only
 10. Vary the structure and phrasing naturally
-11. Make it detailed and comprehensive - aim for 1500-2000 words
+11. Make it detailed and comprehensive - aim for 1200-1400 words
 
 IMPORTANT: 
 - This is a formal planning objection - be thorough and detailed
@@ -397,7 +397,7 @@ IMPORTANT:
       },
       JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 6000,
+        max_tokens: 3500,
         messages: [{
           role: 'user',
           content: prompt
