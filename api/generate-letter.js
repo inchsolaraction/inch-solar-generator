@@ -102,52 +102,6 @@ function cleanText(text) {
     .trim();
 }
 
-// Build committee context based on selected concerns
-function buildCommitteeContext(concerns) {
-  let context = '\n\nVERIFIED COMMUNITY RESEARCH (use these FACTS to support the respondent\'s concerns):\n';
-  
-  const mapping = {
-    'food_security': concerns.food_security,
-    'river_pollution': concerns.river_pollution,
-    'well_contamination': concerns.well_contamination,
-    'flooding': concerns.flooding,
-    'mental_health': concerns.mental_health,
-    'glint_glare': concerns.glint_glare,
-    'location_scale': concerns.location_scale,
-    'noise_vibration': concerns.noise_vibration,
-    'no_plan': concerns.no_plan,
-    'lack_legislation': concerns.lack_legislation,
-    'wildlife': concerns.wildlife,
-    'children': concerns.children,
-    'road_safety': concerns.road_safety,
-    'road_infrastructure': concerns.road_infrastructure,
-    'lack_engagement': concerns.lack_engagement,
-    'decommissioning': concerns.decommissioning,
-    'archaeology': concerns.archaeology,
-    'flora_fauna': concerns.flora_fauna,
-    'privacy': concerns.privacy,
-    'visual_impact': concerns.visual_impact,
-    'economic_impact': concerns.economic_impact,
-    'battery_fire': concerns.battery_fire,
-    'property_devaluation': concerns.property_devaluation,
-    'agricultural_land': concerns.agricultural_land,
-    'security': concerns.security,
-    'quality_components': concerns.quality_components,
-    'industrialisation': concerns.industrialisation,
-    'air_traffic': concerns.air_traffic,
-    'existing_renewables': concerns.existing_renewables,
-    'adjacent_renewables': concerns.adjacent_renewables
-  };
-  
-  for (const [key, value] of Object.entries(mapping)) {
-    if (value && COMMITTEE_RESEARCH[key]) {
-      context += `\n[${key.toUpperCase().replace(/_/g, ' ')} FACTS]: ${COMMITTEE_RESEARCH[key]}`;
-    }
-  }
-  
-  return context;
-}
-
 // Create formatted text file for inputs
 function createInputsTextFile(formData, firstName, lastName) {
   const now = new Date();
@@ -478,79 +432,133 @@ module.exports = async (req, res) => {
       personal_story: cleanText(formData['Can you share a personal story and reason you wish to object. \n'] || formData['Can you share a personal story and reason you wish to object.'] || '')
     };
     
-    const committeeContext = buildCommitteeContext(concerns);
+    // Build committee context ONLY for selected concerns to reduce token usage
+    const buildSelectedContext = (selectedLabels, concerns) => {
+      if (selectedLabels.length === 0) return '';
+      
+      let context = '\n\nSUPPORTING FACTS:\n';
+      const factsMap = {
+        'Food Security': '[FACTS] Loss of agricultural land reduces local food production capacity',
+        'River Pollution': '[FACTS] Construction runoff and panel washing chemicals risk contaminating the Dissour and Bride rivers',
+        'Well contamination': '[FACTS] Groundwater contamination from solar farm chemicals threatens private wells used by local households',
+        'Flooding': '[FACTS] Storm Babet (October 2023) caused severe flooding. Development will increase surface runoff and flood risk',
+        'Mental health': '[FACTS] Visual intrusion, construction noise, and loss of rural character negatively impact mental wellbeing',
+        'Glint and glare': '[FACTS] Solar panel reflections create glare hazards for drivers and nearby residents',
+        'Location, Scale and size': '[FACTS] The proposed 500+ acre site will industrialize rural agricultural landscape',
+        'Noise & vibration': '[FACTS] Construction traffic, pile driving, and inverter noise will disrupt rural tranquility',
+        'No clear rational plan': '[FACTS] Lack of strategic planning framework for large-scale solar developments in Cork',
+        'Lack of legislation': '[FACTS] Ireland lacks comprehensive solar farm regulations compared to EU neighbors',
+        'Wildlife/Biodiversity': '[FACTS] Development threatens local wildlife habitats and biodiversity corridors',
+        'Impact on children': '[FACTS] Safety concerns with construction traffic near schools and children\'s play areas',
+        'Road Safety/Traffic during construction': '[FACTS] Narrow rural roads unsuitable for heavy construction vehicle traffic',
+        'Road infrastructure': '[FACTS] Local roads lack capacity for construction traffic; damage likely',
+        'Lack of public engagement': '[FACTS] Community concerns about inadequate consultation and information provision',
+        'Decommissioning': '[FACTS] No clear plan or financial guarantee for site restoration after 35-year lifespan',
+        'Archaeology': '[FACTS] 15 recorded monuments within 5km including ringforts, burial grounds, and holy wells',
+        'Flora and fauna (horticulture)': '[FACTS] Local flora and horticultural heritage at risk from development',
+        'Privacy': '[FACTS] Elevated panels and security infrastructure overlook neighboring properties',
+        'Visual impact': '[FACTS] Industrial-scale solar arrays will dominate rural viewscapes',
+        'Economic knock-on/loss of jobs': '[FACTS] Agricultural jobs lost, minimal long-term employment from solar operations',
+        'Battery Storage fire risk': '[FACTS] Lithium battery storage systems pose fire and toxic smoke risks',
+        'Devaluation of property': '[FACTS] Property values typically decline 10-30% near large solar installations',
+        'Loss of agricultural land': '[FACTS] Permanent loss of productive farmland for food production',
+        'Security': '[FACTS] Fencing, cameras, and security lighting create industrial appearance',
+        'Quality of electrical and mechanical components': '[FACTS] Concerns about quality standards and lifespan of imported equipment',
+        'Industrialisation': '[FACTS] Development will industrialize rural agricultural character of the area',
+        'Air traffic': '[FACTS] Solar panel glare risks for aircraft using Cork and Waterford airports',
+        'Existing Renewable applications/developments in Cork/West Waterford': '[FACTS] Cumulative impact of multiple renewable projects not assessed',
+        'Adjacent Renewable applications/development in local area': '[FACTS] Combined visual and environmental impact of nearby projects'
+      };
+      
+      selectedLabels.forEach(label => {
+        if (factsMap[label]) {
+          context += `\n${label}: ${factsMap[label]}`;
+        }
+      });
+      
+      return context;
+    };
     
-    // Build concerns list with BOTH selected labels AND detailed responses
+    const committeeContext = buildSelectedContext(selectedConcernLabels, concerns);
+    
+    // Build a concise concerns summary
     let concernsList = '';
     
-    // Add selected concern labels first
+    // Add detailed responses ONLY for selected concerns
     if (selectedConcernLabels.length > 0) {
-      concernsList += 'SELECTED CONCERNS:\n' + selectedConcernLabels.join(', ') + '\n\n';
+      const concernKeyMap = {
+        'Food Security': 'food_security',
+        'River Pollution': 'river_pollution',
+        'Well contamination': 'well_contamination',
+        'Flooding': 'flooding',
+        'Mental health': 'mental_health',
+        'Glint and glare': 'glint_glare',
+        'Location, Scale and size': 'location_scale',
+        'Noise & vibration': 'noise_vibration',
+        'No clear rational plan': 'no_plan',
+        'Lack of legislation': 'lack_legislation',
+        'Wildlife/Biodiversity': 'wildlife',
+        'Impact on children': 'children',
+        'Road Safety/Traffic during construction': 'road_safety',
+        'Road infrastructure': 'road_infrastructure',
+        'Lack of public engagement': 'lack_engagement',
+        'Decommissioning': 'decommissioning',
+        'Archaeology': 'archaeology',
+        'Flora and fauna (horticulture)': 'flora_fauna',
+        'Privacy': 'privacy',
+        'Visual impact': 'visual_impact',
+        'Economic knock-on/loss of jobs': 'economic_impact',
+        'Battery Storage fire risk': 'battery_fire',
+        'Devaluation of property': 'property_devaluation',
+        'Loss of agricultural land': 'agricultural_land',
+        'Security': 'security',
+        'Quality of electrical and mechanical components': 'quality_components',
+        'Industrialisation': 'industrialisation',
+        'Air traffic': 'air_traffic',
+        'Existing Renewable applications/developments in Cork/West Waterford': 'existing_renewables',
+        'Adjacent Renewable applications/development in local area': 'adjacent_renewables'
+      };
+      
+      selectedConcernLabels.forEach(label => {
+        const key = concernKeyMap[label];
+        if (key && concerns[key]) {
+          concernsList += `${label}: ${concerns[key]}\n\n`;
+        }
+      });
     }
     
-    // Add detailed responses for each concern
-    const detailedConcerns = Object.entries(concerns)
-      .filter(([key, value]) => value && value.length > 0 && key !== 'additional_concerns' && key !== 'most_important' && key !== 'personal_story')
-      .map(([key, value]) => `${key.replace(/_/g, ' ').toUpperCase()}: ${value}`)
-      .join('\n\n');
-    
-    if (detailedConcerns) {
-      concernsList += 'DETAILED CONCERNS:\n' + detailedConcerns;
-    }
-    
-    // Add most important concerns if provided
+    // Add most important, additional, and personal story
     if (concerns.most_important) {
-      concernsList += '\n\nMOST IMPORTANT CONCERNS:\n' + concerns.most_important;
+      concernsList += `PRIORITY: ${concerns.most_important}\n\n`;
     }
-    
-    // Add additional concerns if provided
     if (concerns.additional_concerns) {
-      concernsList += '\n\nADDITIONAL CONCERNS:\n' + concerns.additional_concerns;
+      concernsList += `ADDITIONAL: ${concerns.additional_concerns}\n\n`;
     }
-    
-    // Add personal story if provided
     if (concerns.personal_story) {
-      concernsList += '\n\nPERSONAL STORY:\n' + concerns.personal_story;
+      concernsList += `PERSONAL: ${concerns.personal_story}`;
     }
     
-    const prompt = `You are an expert at writing formal planning objection submissions for Irish planning applications.
+    const prompt = `Write a formal planning objection letter to Cork County Council for the Inch Solar Development.
 
-Generate a personalized, professional objection letter to Cork County Council regarding the Inch Solar Development (Greenhills Solar Farm).
+RESPONDENT: ${firstName} ${lastName}, ${occupation}
+Address: ${address} | Distance: ${distance}
 
-RESPONDENT: ${firstName} ${lastName}
-Email: ${email}
-Address: ${address}
-Distance from Development: ${distance}
-Occupation: ${occupation}
+SELECTED CONCERNS: ${selectedConcernLabels.join(', ')}
 
-RESPONDENT'S PERSONAL CONCERNS (PRIMARY CONTENT - USE EXTENSIVELY):
+THEIR WORDS:
 ${concernsList}
 
+SUPPORTING FACTS:
 ${committeeContext}
 
-CRITICAL INSTRUCTIONS:
-1. The respondent specifically selected these concerns: ${selectedConcernLabels.join(', ')}
-2. You MUST write detailed sections addressing EACH of these selected concerns
-3. Use the respondent's OWN WORDS from their detailed concern responses
-4. Support EACH concern with relevant community research facts (marked with [FACTS] above)
-5. Structure the letter with clear headings for each concern category the respondent selected
-6. Make it 1200-1400 words following Cork County Council format
-7. Use: Address, Date, Council details, "Re: Objection...", "A Chara", detailed grounds using ALL respondent's concerns, personal impact, conclusion, "Mise le Meas"
-8. Reference Irish planning guidelines where relevant
-9. Professional tone, varied sentence structure
-10. If the respondent provided "most important concerns" or personal story, feature these prominently
-11. Planning reference: [PLANNING REF - TO BE INSERTED]
-12. EVERY concern the respondent ticked must have its own section with supporting facts
+INSTRUCTIONS:
+- EXACTLY 1200-1400 words total (strict requirement)
+- Formal Cork County Council format
+- Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
+- Structure: Address, Date, Council details, "Re: Objection [PLANNING REF - TO BE INSERTED]", "A Chara", grounds sections, conclusion, "Mise le Meas"
+- Professional tone, cite planning guidelines
 
-Example structure:
-## GROUNDS OF OBJECTION
-### 1. [First Selected Concern]
-[Respondent's words + supporting facts]
-### 2. [Second Selected Concern]
-[Respondent's words + supporting facts]
-[Continue for ALL selected concerns]
-
-Generate the complete formal objection letter now.`;
+Generate the complete 1200-1400 word letter now:`;
 
     console.log('Calling Claude API...');
     
@@ -572,7 +580,7 @@ Generate the complete formal objection letter now.`;
       },
       JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 3500,
+        max_tokens: 2000, // ~1500 words target
         messages: [{ role: 'user', content: prompt }]
       })
     );
