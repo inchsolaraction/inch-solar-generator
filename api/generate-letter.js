@@ -1,32 +1,69 @@
-// Inch Solar Development - Objection Letter Generator v3.0
-// Complete system with SendGrid, Dropbox, and text file attachments
+// Inch Solar Development - Objection Letter Generator v3.0 FINAL
+// Complete system with SendGrid, Dropbox, formatted text files, and all Tally fields
 
 const https = require('https');
 
-// Committee Research - EASY TO UPDATE
-// Last updated: December 15, 2024 - Version 0.2 (DRAFT)
+// Committee Research - Updated for all concern categories
 const COMMITTEE_RESEARCH = {
-  archaeology: `There are 15 recorded monuments within 5km of the proposed site according to the National Monuments Service. The developer's EIAR has inadequately assessed the archaeological impact, particularly concerning Ring forts and Medieval sites in the immediate vicinity.`,
+  food_security: `This development would result in the loss of 800+ acres of prime agricultural land. Once converted, this land will be lost to food production for 35+ years, directly contradicting national food security policies and the Food Vision 2030 strategy.`,
+  
+  river_pollution: `The site's proximity to local waterways raises concerns about potential contamination from panel cleaning chemicals, construction runoff, and battery storage facilities. The developer's environmental impact assessment has not adequately addressed water quality protection measures.`,
+  
+  well_contamination: `Many local residents rely on private wells for drinking water. The construction phase and ongoing operations pose risks of contamination from chemicals, increased runoff, and changes to groundwater flow patterns that have not been properly assessed.`,
   
   flooding: `This exact site experienced significant flooding during Storm Babet in October 2023. Despite documented flooding events, no comprehensive flood risk assessment addressing climate change impacts has been conducted by the developer. The proposed drainage system is inadequate for extreme weather events.`,
   
-  scale_and_size: `At over 800 acres, this proposal represents an industrialization of rural landscape on an unprecedented scale for this area. The cumulative impact of multiple large-scale solar developments in East Cork has not been adequately assessed.`,
+  mental_health: `The scale and industrial nature of this development will fundamentally alter the rural character of the area, affecting residents' mental wellbeing, sense of place, and quality of life. The psychological impact of living adjacent to an industrial-scale energy facility has not been assessed.`,
+  
+  glint_glare: `Solar panel glint and glare can cause significant nuisance to nearby residents and road users. The developer has not provided adequate assessment of reflective impacts on homes within 500m of the development boundary.`,
+  
+  location_scale: `At over 800 acres, this proposal represents an industrialization of rural landscape on an unprecedented scale for this area. The cumulative impact of multiple large-scale solar developments in East Cork has not been adequately assessed.`,
+  
+  noise_vibration: `Construction activities will generate significant noise and vibration impacts over an extended period. The operational noise from inverters and transformers has not been properly assessed for impact on nearby residential properties.`,
+  
+  no_plan: `The application lacks a clear, rational plan for integration with the local area. There is no demonstrated need for this specific location, and alternatives have not been properly considered.`,
+  
+  lack_legislation: `Current planning legislation is inadequate for developments of this scale. The developer can place panels right up to property boundaries without adequate setback requirements, directly impacting residential amenity.`,
   
   wildlife: `The site contains habitats for protected species including bats, badgers, and various bird species. The ecological impact assessment fails to address habitat fragmentation and the impact on local wildlife corridors.`,
   
-  agricultural_land: `This development would result in the loss of 800+ acres of prime agricultural land. Once converted, this land will be lost to food production for 35+ years, directly contradicting national food security policies and the Food Vision 2030 strategy.`,
+  children: `The proximity of the development to local schools and residential areas raises concerns about children's safety during construction, the impact on outdoor play and recreation, and the psychological effects of growing up beside an industrial facility.`,
   
-  traffic: `The narrow rural roads serving this area are unsuitable for the volume of construction traffic required. The developer has not adequately assessed the impact on road safety, particularly for school traffic and agricultural vehicles.`,
+  road_safety: `The narrow rural roads serving this area are unsuitable for the volume of construction traffic required. The developer has not adequately assessed the impact on road safety, particularly for school traffic and agricultural vehicles.`,
   
-  planning_precedent: `Cork County Council has refused similar large-scale solar developments on grounds of scale, visual impact, and agricultural land loss. These concerns are directly applicable to the Inch proposal.`,
+  road_infrastructure: `Local roads are not designed for heavy construction traffic. The developer has not committed to adequate road improvements or provided guarantees for repair of damage caused by construction vehicles.`,
   
-  community_engagement: `Despite over 200 signatures on a petition requesting it, no public meeting has been held by the developer. This represents a failure to meaningfully engage with the affected community as required under planning guidelines.`,
+  lack_engagement: `Despite over 200 signatures on a petition requesting it, no public meeting has been held by the developer. This represents a failure to meaningfully engage with the affected community as required under planning guidelines.`,
   
-  legislation: `Current planning legislation is inadequate for developments of this scale. The developer can place panels right up to property boundaries without adequate setback requirements, directly impacting residential amenity.`,
+  decommissioning: `The decommissioning plan is vague and provides no financial security for site restoration. Who will bear the cost of decommissioning if the developer becomes insolvent after 35 years?`,
   
-  decommissioning: `The decommissioning plan is vague and provides no financial security for site restoration. Who will bear the cost of decommissioning if the developer becomes insolvent?`,
+  archaeology: `There are 15 recorded monuments within 5km of the proposed site according to the National Monuments Service. The developer's EIAR has inadequately assessed the archaeological impact, particularly concerning Ring forts and Medieval sites in the immediate vicinity.`,
   
-  property_impact: `Properties within 500m of industrial-scale solar farms have documented impacts on property values, visual amenity, and quality of life. These impacts are not adequately addressed in the developer's assessment.`
+  flora_fauna: `The development will result in the permanent loss of agricultural grassland and hedgerows, impacting local biodiversity. The cumulative effect on flora and fauna from this and other developments has not been assessed.`,
+  
+  privacy: `The industrial scale of the development, including security fencing, cameras, and lighting, will significantly impact the privacy and residential amenity of nearby homes. The developer has not addressed these concerns adequately.`,
+  
+  visual_impact: `The development will fundamentally alter the rural landscape character of the area. Properties within 2km will experience significant visual impact from panels, fencing, and infrastructure that cannot be adequately screened.`,
+  
+  economic_impact: `The development offers minimal long-term local employment while permanently removing agricultural land from productive use. The impact on local agricultural employment and the wider rural economy has not been properly assessed.`,
+  
+  battery_fire: `Battery storage facilities pose fire risks that have not been adequately assessed. Emergency services have expressed concerns about their capacity to respond to battery fires, and evacuation procedures for nearby residents have not been established.`,
+  
+  property_devaluation: `Properties within 500m of industrial-scale solar farms have documented impacts on property values, visual amenity, and quality of life. These impacts are not adequately addressed in the developer's assessment.`,
+  
+  agricultural_land: `This development would result in the loss of 800+ acres of prime agricultural land for 35+ years, directly contradicting Food Vision 2030 and national food security policies.`,
+  
+  security: `The security requirements for the site, including fencing, CCTV, and lighting, will create an industrial appearance and impact on the rural character. Security measures and their visual impact have not been properly addressed.`,
+  
+  quality_components: `Questions remain about the quality and origin of electrical and mechanical components. The developer has not provided adequate guarantees about component quality, efficiency ratings, or replacement schedules.`,
+  
+  industrialisation: `This development represents the industrialization of a rural area. The cumulative impact of multiple renewable energy developments in the region threatens the rural character and agricultural economy of East Cork.`,
+  
+  air_traffic: `The potential impact on air traffic, including helicopters using nearby routes, has not been adequately assessed. Solar panel glare could affect aviation safety.`,
+  
+  existing_renewables: `There are already numerous renewable energy applications and developments in Cork and West Waterford. The cumulative impact assessment is inadequate and does not consider the totality of renewable energy infrastructure in the region.`,
+  
+  adjacent_renewables: `The cumulative impact of this development alongside existing and proposed renewable developments in the immediate area has not been properly assessed. The region is reaching saturation point for industrial-scale renewable infrastructure.`
 };
 
 // Helper function to make HTTPS requests
@@ -65,34 +102,61 @@ function cleanText(text) {
     .trim();
 }
 
-// Build committee context
+// Build committee context based on selected concerns
 function buildCommitteeContext(concerns) {
   let context = '\n\nVERIFIED COMMUNITY RESEARCH (use these FACTS to support the respondent\'s concerns):\n';
   
-  if (concerns.archaeology) context += `\n[ARCHAEOLOGY FACTS]: ${COMMITTEE_RESEARCH.archaeology}`;
-  if (concerns.flooding) context += `\n[FLOODING FACTS]: ${COMMITTEE_RESEARCH.flooding}`;
-  if (concerns.location_scale) context += `\n[SCALE FACTS]: ${COMMITTEE_RESEARCH.scale_and_size}`;
-  if (concerns.wildlife) context += `\n[WILDLIFE FACTS]: ${COMMITTEE_RESEARCH.wildlife}`;
-  if (concerns.agricultural_land) context += `\n[AGRICULTURAL FACTS]: ${COMMITTEE_RESEARCH.agricultural_land}`;
-  if (concerns.road_safety || concerns.road_infrastructure) context += `\n[TRAFFIC FACTS]: ${COMMITTEE_RESEARCH.traffic}`;
-  if (concerns.lack_engagement) context += `\n[ENGAGEMENT FACTS]: ${COMMITTEE_RESEARCH.community_engagement}`;
-  if (concerns.lack_legislation) context += `\n[LEGISLATION FACTS]: ${COMMITTEE_RESEARCH.legislation}`;
-  if (concerns.decommissioning) context += `\n[DECOMMISSIONING FACTS]: ${COMMITTEE_RESEARCH.decommissioning}`;
-  if (concerns.property_devaluation) context += `\n[PROPERTY FACTS]: ${COMMITTEE_RESEARCH.property_impact}`;
+  const mapping = {
+    'food_security': concerns.food_security,
+    'river_pollution': concerns.river_pollution,
+    'well_contamination': concerns.well_contamination,
+    'flooding': concerns.flooding,
+    'mental_health': concerns.mental_health,
+    'glint_glare': concerns.glint_glare,
+    'location_scale': concerns.location_scale,
+    'noise_vibration': concerns.noise_vibration,
+    'no_plan': concerns.no_plan,
+    'lack_legislation': concerns.lack_legislation,
+    'wildlife': concerns.wildlife,
+    'children': concerns.children,
+    'road_safety': concerns.road_safety,
+    'road_infrastructure': concerns.road_infrastructure,
+    'lack_engagement': concerns.lack_engagement,
+    'decommissioning': concerns.decommissioning,
+    'archaeology': concerns.archaeology,
+    'flora_fauna': concerns.flora_fauna,
+    'privacy': concerns.privacy,
+    'visual_impact': concerns.visual_impact,
+    'economic_impact': concerns.economic_impact,
+    'battery_fire': concerns.battery_fire,
+    'property_devaluation': concerns.property_devaluation,
+    'agricultural_land': concerns.agricultural_land,
+    'security': concerns.security,
+    'quality_components': concerns.quality_components,
+    'industrialisation': concerns.industrialisation,
+    'air_traffic': concerns.air_traffic,
+    'existing_renewables': concerns.existing_renewables,
+    'adjacent_renewables': concerns.adjacent_renewables
+  };
+  
+  for (const [key, value] of Object.entries(mapping)) {
+    if (value && COMMITTEE_RESEARCH[key]) {
+      context += `\n[${key.toUpperCase().replace(/_/g, ' ')} FACTS]: ${COMMITTEE_RESEARCH[key]}`;
+    }
+  }
   
   return context;
 }
 
 // Create formatted text file for inputs
 function createInputsTextFile(formData, firstName, lastName) {
-  const timestamp = new Date().toLocaleString('en-GB', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const timestamp = `${dd}-${mm}-${yyyy} ${hh}:${min}`;
   
   let content = `${'='.repeat(80)}\n`;
   content += `TALLY FORM SUBMISSION - USER INPUTS\n`;
@@ -104,28 +168,61 @@ function createInputsTextFile(formData, firstName, lastName) {
   content += `${'='.repeat(80)}\n\n`;
   
   // Add basic fields
-  for (const [key, value] of Object.entries(formData)) {
-    if (!value || value === '' || key.startsWith('question_eREaMx')) continue;
-    
-    let label = key.replace(/^question_[A-Za-z0-9]+,?\s*/, '').trim();
-    if (label && label.length < 100) {
-      content += `${label}:\n${String(value)}\n\n`;
-    }
+  const basicFields = ['First Name', 'Last name', 'Email', 'Address', 'What do you work at?'];
+  const distanceField = 'How close do you live to the proposed solar development?';
+  
+  if (formData['First Name']) content += `First Name: ${formData['First Name']}\n\n`;
+  if (formData['Last name']) content += `Last Name: ${formData['Last name']}\n\n`;
+  if (formData['Email']) content += `Email: ${formData['Email']}\n\n`;
+  if (formData['Address']) content += `Address:\n${formData['Address']}\n\n`;
+  if (formData[distanceField]) content += `Distance from Development: ${formData[distanceField]}\n\n`;
+  if (formData['What do you work at?']) content += `Occupation: ${formData['What do you work at?']}\n\n`;
+  
+  content += `${'='.repeat(80)}\n`;
+  content += `SELECTED CONCERNS\n`;
+  content += `${'='.repeat(80)}\n\n`;
+  
+  // Add main concerns checklist
+  if (formData['What are your main concerns with the Solar Development ?']) {
+    content += `Main Concerns Selected:\n${formData['What are your main concerns with the Solar Development ?']}\n\n`;
   }
   
   content += `${'='.repeat(80)}\n`;
   content += `DETAILED CONCERNS\n`;
   content += `${'='.repeat(80)}\n\n`;
   
-  // Add concern fields
+  // Add all concern detail fields
   const concernFields = Object.entries(formData).filter(([key]) => 
-    key.includes('What are your concerns around')
+    key.startsWith('What are your concerns around')
   );
   
   for (const [key, value] of concernFields) {
-    if (!value || value === '') continue;
-    let label = key.replace(/^question_[A-Za-z0-9]+,?\s*/, '').trim();
-    content += `${label}:\n${String(value)}\n\n`;
+    if (value && value.trim()) {
+      const cleanKey = key.replace(/^What are your concerns around /, '').replace(/\n/g, '').trim();
+      content += `${cleanKey}:\n${value}\n\n`;
+    }
+  }
+  
+  // Add additional fields
+  if (formData['Do you have additional concerns that are were not listed?']) {
+    content += `${'='.repeat(80)}\n`;
+    content += `ADDITIONAL CONCERNS\n`;
+    content += `${'='.repeat(80)}\n\n`;
+    content += `${formData['Do you have additional concerns that are were not listed?']}\n\n`;
+  }
+  
+  if (formData['Out of the concerns you have selected or mentioned above, are there any that are most important to you?']) {
+    content += `${'='.repeat(80)}\n`;
+    content += `MOST IMPORTANT CONCERNS\n`;
+    content += `${'='.repeat(80)}\n\n`;
+    content += `${formData['Out of the concerns you have selected or mentioned above, are there any that are most important to you?']}\n\n`;
+  }
+  
+  if (formData['Can you share a personal story and reason you wish to object.']) {
+    content += `${'='.repeat(80)}\n`;
+    content += `PERSONAL STORY\n`;
+    content += `${'='.repeat(80)}\n\n`;
+    content += `${formData['Can you share a personal story and reason you wish to object.']}\n\n`;
   }
   
   content += `${'='.repeat(80)}\n`;
@@ -137,14 +234,13 @@ function createInputsTextFile(formData, firstName, lastName) {
 
 // Create formatted text file for letter
 function createLetterTextFile(letterText, firstName, lastName) {
-  const timestamp = new Date().toLocaleString('en-GB', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const timestamp = `${dd}-${mm}-${yyyy} ${hh}:${min}`;
   
   let content = `${'='.repeat(80)}\n`;
   content += `OBJECTION LETTER - INCH SOLAR DEVELOPMENT\n`;
@@ -214,7 +310,7 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
   try {
     const emailData = {
       personalizations: [{
-        to: [{ email: to }],
+        to: [{ email: to }, { email: 'inchsolaraction@gmail.com' }],
         subject: subject
       }],
       from: {
@@ -241,7 +337,7 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
       JSON.stringify(emailData)
     );
     
-    console.log('Email sent via SendGrid');
+    console.log('Email sent via SendGrid to:', to, 'and inchsolaraction@gmail.com');
     return { success: true };
     
   } catch (error) {
@@ -285,20 +381,20 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid email address' });
     }
     
-    const distance = cleanText(formData['How close do you live to the proposed solar development?\n'] || '');
-    const houseNumber = cleanText(formData['Can you find your house on this map? If so, what number is it? \nIf not, you can skip this question\n(note to view a bigger image, you can right click and open in a new tab to zoom with your browser)'] || '');
+    const address = cleanText(formData['Address'] || '');
+    const distance = cleanText(formData['How close do you live to the proposed solar development?\n'] || formData['How close do you live to the proposed solar development?'] || '');
     const occupation = cleanText(formData['What do you work at?'] || '');
     
-    // Extract concerns
+    // Extract ALL concern details from the updated form
     const concerns = {
-      food_security: cleanText(formData['What are your concerns around Food Security \n'] || ''),
-      river_pollution: cleanText(formData['What are your concerns around River Pollution\n'] || ''),
-      well_contamination: cleanText(formData['What are your concerns around Well Contamination \n'] || ''),
+      food_security: cleanText(formData['What are your concerns around Food Security \n'] || formData['What are your concerns around Food Security'] || ''),
+      river_pollution: cleanText(formData['What are your concerns around River Pollution\n'] || formData['What are your concerns around River Pollution'] || ''),
+      well_contamination: cleanText(formData['What are your concerns around Well Contamination \n'] || formData['What are your concerns around Well Contamination'] || ''),
       flooding: cleanText(formData['What are your concerns around Flooding'] || ''),
       mental_health: cleanText(formData['What are your concerns around Mental health'] || ''),
       glint_glare: cleanText(formData['What are your concerns around Glint and glare'] || ''),
       location_scale: cleanText(formData['What are your concerns around Location, Scale and size'] || ''),
-      noise_vibration: cleanText(formData['What are your concerns around Noise &amp; vibration'] || ''),
+      noise_vibration: cleanText(formData['What are your concerns around Noise & vibration'] || formData['What are your concerns around Noise &amp; vibration'] || ''),
       no_plan: cleanText(formData['What are your concerns around no clear rational plan'] || ''),
       lack_legislation: cleanText(formData['What are your concerns around Lack of legislation'] || ''),
       wildlife: cleanText(formData['What are your concerns around Wildlife/Biodiversity'] || ''),
@@ -312,11 +408,18 @@ module.exports = async (req, res) => {
       privacy: cleanText(formData['What are your concerns around Privacy'] || ''),
       visual_impact: cleanText(formData['What are your concerns around Visual impact'] || ''),
       economic_impact: cleanText(formData['What are your concerns around Economic knock-on/loss of jobs'] || ''),
-      battery_fire: cleanText(formData['What are your concerns around Battery Storage and fire risk'] || ''),
+      battery_fire: cleanText(formData['What are your concerns around Battery Storage and fire risk'] || formData['What are your concerns around Battery Storage fire risk'] || ''),
       property_devaluation: cleanText(formData['What are your concerns around Devaluation of property'] || ''),
       agricultural_land: cleanText(formData['What are your concerns around Loss of agricultural land'] || ''),
+      security: cleanText(formData['What are your concerns around Security'] || ''),
+      quality_components: cleanText(formData['What are your concerns around the Quality of electrical and mechanical components?'] || formData['What are your concerns around Quality of electrical and mechanical components'] || ''),
+      industrialisation: cleanText(formData['What are your concerns around Industrialisation\n'] || formData['What are your concerns around Industrialisation'] || ''),
+      air_traffic: cleanText(formData['What are your concerns around Air traffic?\n'] || formData['What are your concerns around Air traffic'] || ''),
+      existing_renewables: cleanText(formData['What are your concerns around existing Renewable applications/developments in Cork/West Waterford'] || ''),
+      adjacent_renewables: cleanText(formData['What are your concerns around adjacent Renewable applications/development in local area ?\n'] || formData['What are your concerns around adjacent Renewable applications/development in local area'] || ''),
       additional_concerns: cleanText(formData['Do you have additional concerns that are were not listed?'] || ''),
-      personal_story: cleanText(formData['Can you share a personal story and reason you wish to object.\n'] || '')
+      most_important: cleanText(formData['Out of the concerns you have selected or mentioned above, are there any that are most important to you?'] || ''),
+      personal_story: cleanText(formData['Can you share a personal story and reason you wish to object. \n'] || formData['Can you share a personal story and reason you wish to object.'] || '')
     };
     
     const committeeContext = buildCommitteeContext(concerns);
@@ -330,7 +433,11 @@ module.exports = async (req, res) => {
 
 Generate a personalized, professional objection letter to Cork County Council regarding the Inch Solar Development (Greenhills Solar Farm).
 
-RESPONDENT: ${firstName} ${lastName}, ${email}, Distance: ${distance}, House: ${houseNumber}, Occupation: ${occupation}
+RESPONDENT: ${firstName} ${lastName}
+Email: ${email}
+Address: ${address}
+Distance from Development: ${distance}
+Occupation: ${occupation}
 
 RESPONDENT'S PERSONAL CONCERNS (PRIMARY CONTENT - USE EXTENSIVELY):
 ${concernsList}
@@ -340,15 +447,16 @@ ${committeeContext}
 CRITICAL INSTRUCTIONS:
 1. Use the respondent's OWN WORDS and concerns as the PRIMARY content
 2. When the respondent provides specific details, USE THEM VERBATIM in the letter
-3. Support their concerns with relevant community research facts (marked with [FACTS] above)
+3. Support EACH of their concerns with relevant community research facts (marked with [FACTS] above)
 4. Cite specific facts when backing up each concern - e.g. "This concern is supported by documented evidence showing..."
 5. Make it 1200-1400 words following Cork County Council format
-6. Structure: Address, Date, Council details, "Re: Objection...", "A Chara", detailed grounds, personal impact, conclusion, "Mise le Meas"
-7. Use clear section headings for concern categories
-8. Reference Irish planning guidelines
-9. Professional tone, varied structure
-10. Include personal story prominently
+6. Structure: Address, Date, Council details, "Re: Objection...", "A Chara", detailed grounds using respondent's concerns, personal impact, conclusion, "Mise le Meas"
+7. Use clear section headings for different concern categories
+8. Reference Irish planning guidelines where relevant
+9. Professional tone, varied sentence structure
+10. Include personal story prominently if provided
 11. Planning reference: [PLANNING REF - TO BE INSERTED]
+12. Ensure EVERY concern the respondent mentioned is addressed in the letter with supporting facts
 
 Generate the complete formal objection letter now.`;
 
@@ -382,15 +490,20 @@ Generate the complete formal objection letter now.`;
     
     // Create filenames with DD-MM-YYYY-HH-MM format
     const now = new Date();
-    const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const dateStr = `${dd}-${mm}-${yyyy}`;
+    const timeStr = `${hh}-${min}`;
     const nameSafe = `${firstName}${lastName}`.replace(/[^a-zA-Z]/g, '');
     
     const inputsFilename = `Inputs-${nameSafe}-${dateStr}-${timeStr}.txt`;
     const letterFilename = `Letter-${nameSafe}-${dateStr}-${timeStr}.txt`;
     
     // Generate text files
-    console.log('Creating text files...');
+    console.log('Creating formatted text files...');
     const inputsContent = createInputsTextFile(formData, firstName, lastName);
     const letterContent = createLetterTextFile(generatedLetter, firstName, lastName);
     
@@ -444,8 +557,8 @@ Generate the complete formal objection letter now.`;
   <div class="attachments">
     <h3>📎 ATTACHED FILES:</h3>
     <ul>
-      <li><strong>${inputsFilename}</strong> - Your form submissions</li>
-      <li><strong>${letterFilename}</strong> - Your generated objection letter</li>
+      <li><strong>${inputsFilename}</strong> - Your form submissions (formatted for easy reading)</li>
+      <li><strong>${letterFilename}</strong> - Your generated objection letter (formatted and ready to submit)</li>
     </ul>
     <p>Both files have also been saved to our shared Dropbox folder for committee records.</p>
   </div>
@@ -463,8 +576,8 @@ Generate the complete formal objection letter now.`;
   <div class="instructions">
     <h3>📋 HOW TO SUBMIT:</h3>
     <ol>
-      <li>Download the attached letter file</li>
-      <li>Review and make any personal edits</li>
+      <li>Download the attached letter file (${letterFilename})</li>
+      <li>Review and make any personal edits you wish</li>
       <li>Submit online at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a></li>
       <li>€20 submission fee required</li>
       <li>Include planning reference when available</li>
@@ -495,7 +608,7 @@ Generate the complete formal objection letter now.`;
       email_status: emailResult,
       dropbox_status: { inputs: dropboxInputs, letter: dropboxLetter },
       files: { inputs: inputsFilename, letter: letterFilename },
-      version: '3.0'
+      version: '3.0-final'
     });
     
   } catch (error) {
