@@ -310,7 +310,8 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
   try {
     const emailData = {
       personalizations: [{
-        to: [{ email: to }, { email: 'inchsolaraction@gmail.com' }],
+        to: [{ email: to }],
+        bcc: [{ email: 'inchsolaraction@gmail.com' }],
         subject: subject
       }],
       from: {
@@ -370,6 +371,48 @@ module.exports = async (req, res) => {
     
     console.log('Processing form submission...');
     
+    // UUID to Label Mapping for checkboxes
+    const CONCERN_UUID_MAP = {
+      'f518f4ed-4ca3-484e-83e5-e06eb8bab2bd': 'Food Security',
+      '236b87ce-d703-4e3c-9faa-da60f2a62f1c': 'River Pollution',
+      '6fed80ec-85c4-4fa7-8dad-ace71984b121': 'Well contamination',
+      '0bad1703-eed9-450d-ac8c-573ac96510e0': 'Flooding',
+      'c44bd15e-a1f4-49f1-877c-c936e4eba8a9': 'Mental health',
+      '7e3637b5-a09b-4f45-b4cd-37a343ca1d7c': 'Glint and glare',
+      '1aa02ff3-9665-4dfb-89fc-2facdfb42e81': 'Location, Scale and size',
+      '6fcb5bf8-4562-44e5-962a-c74c1ae2eda4': 'Noise & vibration',
+      'be9bc197-9760-475d-a8e7-c435aeab1ebd': 'No clear rational plan',
+      '55a4b42b-af2d-4703-90ef-746a3c29e4ed': 'Lack of legislation',
+      '4a95b29a-9890-4636-b718-cca262ccd0e1': 'Wildlife/Biodiversity',
+      '9ae822bc-3ec3-49b4-a898-3abcd06bd7e0': 'Impact on children',
+      'e40e6075-a288-4dcb-8293-d77374893eea': 'Road Safety/Traffic during construction',
+      'bd18d4eb-85a6-440a-aded-0a4790ad20e7': 'Road infrastructure',
+      'f30bf427-87cf-48bc-9693-3b52dd3d1e37': 'Lack of public engagement',
+      '517a7dea-7817-4d1b-a571-5ca116bda89e': 'Decommissioning',
+      '5543604c-a04e-4190-9e81-0ea896c43c6d': 'Archaeology',
+      '67956962-34be-401c-b51f-50517dd77f26': 'Flora and fauna (horticulture)',
+      'd79d22b0-882b-47b4-948f-dc8f3bde69c0': 'Privacy',
+      '4e09cc9d-c328-40ef-8e84-1d5caf55a002': 'Visual impact',
+      'ccd3686f-eb61-48d4-9a88-c2d3c4321cf7': 'Economic knock-on/loss of jobs',
+      '9fe9d950-1d4c-4f96-973b-e810a736faaa': 'Battery Storage fire risk',
+      'c8c054e9-8208-42a4-a546-2283acc3c437': 'Devaluation of property',
+      '65e6869f-38d0-4162-a9c8-8064f57ba1a7': 'Loss of agricultural land',
+      '76fe7eb2-114d-4aa0-8f79-d1d76289fe73': 'Security',
+      'b498082f-1545-4336-b708-381de0a72715': 'Quality of electrical and mechanical components',
+      '631c55bd-932e-4505-bbf9-9a648217e8c8': 'Industrialisation',
+      '2897ae36-1f9c-4021-a26e-14d8bc459bd6': 'Air traffic',
+      'cdef6524-62a8-4e70-8f33-2fee54e6a243': 'Existing Renewable applications/developments in Cork/West Waterford',
+      'c0f749a6-d4f3-4454-a682-a2e7d976c2fc': 'Adjacent Renewable applications/development in local area'
+    };
+    
+    const DISTANCE_UUID_MAP = {
+      '849fda9b-84f1-48e6-9bfa-f24c29a7ea0a': '<500m',
+      '98ba1248-f87b-4b89-9f81-4a57ddd37237': '<1km',
+      '33468851-48d5-4e2c-881d-369540cf00c0': '1-3km',
+      '0ee91f31-2e21-44d8-91b4-fa4015e2d91a': '3-5km',
+      'b5893382-0a9e-471f-aa71-263b83b912ea': '5km+'
+    };
+    
     // Extract basic info
     const firstName = cleanText(formData['First Name'] || '');
     const lastName = cleanText(formData['Last name'] || '');
@@ -382,8 +425,14 @@ module.exports = async (req, res) => {
     }
     
     const address = cleanText(formData['Address'] || '');
-    const distance = cleanText(formData['How close do you live to the proposed solar development?\n'] || formData['How close do you live to the proposed solar development?'] || '');
+    const distanceRaw = cleanText(formData['How close do you live to the proposed solar development?\n'] || formData['How close do you live to the proposed solar development?'] || '');
+    const distance = DISTANCE_UUID_MAP[distanceRaw] || distanceRaw;
     const occupation = cleanText(formData['What do you work at?'] || '');
+    
+    // Parse selected concerns from UUID string
+    const concernsRaw = formData['What are your main concerns with the Solar Development ?\n'] || formData['What are your main concerns with the Solar Development ?'] || '';
+    const selectedConcernUUIDs = concernsRaw.split(',').map(uuid => uuid.trim()).filter(uuid => uuid);
+    const selectedConcernLabels = selectedConcernUUIDs.map(uuid => CONCERN_UUID_MAP[uuid]).filter(label => label);
     
     // Extract ALL concern details from the updated form
     const concerns = {
@@ -424,10 +473,38 @@ module.exports = async (req, res) => {
     
     const committeeContext = buildCommitteeContext(concerns);
     
-    const concernsList = Object.entries(concerns)
-      .filter(([key, value]) => value && value.length > 0)
+    // Build concerns list with BOTH selected labels AND detailed responses
+    let concernsList = '';
+    
+    // Add selected concern labels first
+    if (selectedConcernLabels.length > 0) {
+      concernsList += 'SELECTED CONCERNS:\n' + selectedConcernLabels.join(', ') + '\n\n';
+    }
+    
+    // Add detailed responses for each concern
+    const detailedConcerns = Object.entries(concerns)
+      .filter(([key, value]) => value && value.length > 0 && key !== 'additional_concerns' && key !== 'most_important' && key !== 'personal_story')
       .map(([key, value]) => `${key.replace(/_/g, ' ').toUpperCase()}: ${value}`)
       .join('\n\n');
+    
+    if (detailedConcerns) {
+      concernsList += 'DETAILED CONCERNS:\n' + detailedConcerns;
+    }
+    
+    // Add most important concerns if provided
+    if (concerns.most_important) {
+      concernsList += '\n\nMOST IMPORTANT CONCERNS:\n' + concerns.most_important;
+    }
+    
+    // Add additional concerns if provided
+    if (concerns.additional_concerns) {
+      concernsList += '\n\nADDITIONAL CONCERNS:\n' + concerns.additional_concerns;
+    }
+    
+    // Add personal story if provided
+    if (concerns.personal_story) {
+      concernsList += '\n\nPERSONAL STORY:\n' + concerns.personal_story;
+    }
     
     const prompt = `You are an expert at writing formal planning objection submissions for Irish planning applications.
 
@@ -445,18 +522,26 @@ ${concernsList}
 ${committeeContext}
 
 CRITICAL INSTRUCTIONS:
-1. Use the respondent's OWN WORDS and concerns as the PRIMARY content
-2. When the respondent provides specific details, USE THEM VERBATIM in the letter
-3. Support EACH of their concerns with relevant community research facts (marked with [FACTS] above)
-4. Cite specific facts when backing up each concern - e.g. "This concern is supported by documented evidence showing..."
-5. Make it 1200-1400 words following Cork County Council format
-6. Structure: Address, Date, Council details, "Re: Objection...", "A Chara", detailed grounds using respondent's concerns, personal impact, conclusion, "Mise le Meas"
-7. Use clear section headings for different concern categories
+1. The respondent specifically selected these concerns: ${selectedConcernLabels.join(', ')}
+2. You MUST write detailed sections addressing EACH of these selected concerns
+3. Use the respondent's OWN WORDS from their detailed concern responses
+4. Support EACH concern with relevant community research facts (marked with [FACTS] above)
+5. Structure the letter with clear headings for each concern category the respondent selected
+6. Make it 1200-1400 words following Cork County Council format
+7. Use: Address, Date, Council details, "Re: Objection...", "A Chara", detailed grounds using ALL respondent's concerns, personal impact, conclusion, "Mise le Meas"
 8. Reference Irish planning guidelines where relevant
 9. Professional tone, varied sentence structure
-10. Include personal story prominently if provided
+10. If the respondent provided "most important concerns" or personal story, feature these prominently
 11. Planning reference: [PLANNING REF - TO BE INSERTED]
-12. Ensure EVERY concern the respondent mentioned is addressed in the letter with supporting facts
+12. EVERY concern the respondent ticked must have its own section with supporting facts
+
+Example structure:
+## GROUNDS OF OBJECTION
+### 1. [First Selected Concern]
+[Respondent's words + supporting facts]
+### 2. [Second Selected Concern]
+[Respondent's words + supporting facts]
+[Continue for ALL selected concerns]
 
 Generate the complete formal objection letter now.`;
 
