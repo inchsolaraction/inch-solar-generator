@@ -429,9 +429,16 @@ module.exports = async (req, res) => {
     const distance = DISTANCE_UUID_MAP[distanceRaw] || distanceRaw;
     const occupation = cleanText(formData['What do you work at?'] || '');
     
-    // Parse selected concerns from UUID string
+    // Parse selected concerns from UUID string or array
     const concernsRaw = formData['What are your main concerns with the Solar Development ?\n'] || formData['What are your main concerns with the Solar Development ?'] || '';
-    const selectedConcernUUIDs = concernsRaw.split(',').map(uuid => uuid.trim()).filter(uuid => uuid);
+    let selectedConcernUUIDs = [];
+    
+    if (Array.isArray(concernsRaw)) {
+      selectedConcernUUIDs = concernsRaw;
+    } else if (typeof concernsRaw === 'string' && concernsRaw) {
+      selectedConcernUUIDs = concernsRaw.split(',').map(uuid => uuid.trim()).filter(uuid => uuid);
+    }
+    
     const selectedConcernLabels = selectedConcernUUIDs.map(uuid => CONCERN_UUID_MAP[uuid]).filter(label => label);
     
     // Extract ALL concern details from the updated form
