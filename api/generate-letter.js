@@ -538,6 +538,16 @@ module.exports = async (req, res) => {
       concernsList += `PERSONAL: ${concerns.personal_story}`;
     }
     
+    // Generate random letter format variation
+    const formatStyles = [
+      'numbered sections with bold headings',
+      'titled sections without numbers',
+      'lettered sections (a, b, c) with underlined headings',
+      'Roman numeral sections (I, II, III) with capitalized headings',
+      'bullet-pointed main concerns with paragraph elaboration'
+    ];
+    const randomFormat = formatStyles[Math.floor(Math.random() * formatStyles.length)];
+    
     const prompt = `Write a formal planning objection letter to Cork County Council for the Inch Solar Development.
 
 RESPONDENT: ${firstName} ${lastName}, ${occupation}
@@ -554,9 +564,12 @@ ${committeeContext}
 INSTRUCTIONS:
 - EXACTLY 1200-1400 words total (strict requirement)
 - Formal Cork County Council format
+- Use THIS formatting style for the concerns section: ${randomFormat}
+- Vary the introduction and conclusion wording - make it unique
 - Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
 - Structure: Address, Date, Council details, "Re: Objection [PLANNING REF - TO BE INSERTED]", "A Chara", grounds sections, conclusion, "Mise le Meas"
-- Professional tone, cite planning guidelines
+- Professional tone, cite planning guidelines where relevant
+- Make the letter feel personal and unique, not template-like
 
 Generate the complete 1200-1400 word letter now:`;
 
@@ -674,14 +687,26 @@ Generate the complete 1200-1400 word letter now:`;
   </div>
   
   <div class="instructions">
-    <h3>📋 HOW TO SUBMIT:</h3>
+    <h3>📋 HOW TO SUBMIT YOUR OBJECTION:</h3>
     <ol>
-      <li>Download the attached letter file (${letterFilename})</li>
-      <li>Review and make any personal edits you wish</li>
-      <li>Submit online at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a></li>
-      <li>€20 submission fee required</li>
-      <li>Include planning reference when available</li>
-      <li>Submit within 35 days of application being lodged</li>
+      <li><strong>Copy the letter text</strong> from the email above or open the attached .txt file</li>
+      <li><strong>Paste into Microsoft Word</strong> (or similar word processor) so you can format and upload it</li>
+      <li><strong>Edit as you see fit:</strong>
+        <ul>
+          <li>Personalize any sections you wish</li>
+          <li>Add photos, maps, or evidence images that support your concerns</li>
+          <li>Adjust wording to match your voice</li>
+        </ul>
+      </li>
+      <li><strong>Save as PDF or Word document</strong></li>
+      <li><strong>Submit online</strong> at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a>
+        <ul>
+          <li>€20 submission fee required</li>
+          <li>Include planning reference: [PLANNING REF - TO BE INSERTED]</li>
+          <li>Submit within 35 days of application being lodged</li>
+        </ul>
+      </li>
+      <li><strong>Need help?</strong> Read Cork County Council's submission guidelines: <a href="https://www.corkcoco.ie/sites/default/files/2022-01/access-guidelines-for-making-a-submission-on-a-planning-application-pdf.pdf">View Guidelines (PDF)</a></li>
     </ol>
   </div>
   
