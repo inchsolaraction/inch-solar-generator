@@ -457,6 +457,11 @@ module.exports = async (req, res) => {
     
     const fullAddress = cleanText(formData['Address'] || '');
     const letterAddress = formatAddress(fullAddress); // Last 2 lines, no eircode for letter
+    
+    // Debug logging
+    console.log('Full address:', fullAddress);
+    console.log('Formatted letter address:', letterAddress);
+    
     const distanceRaw = cleanText(formData['How close do you live to the proposed solar development?\n'] || formData['How close do you live to the proposed solar development?'] || '');
     const distance = DISTANCE_UUID_MAP[distanceRaw] || distanceRaw;
     const occupation = cleanText(formData['What do you work at?'] || '');
@@ -661,8 +666,9 @@ INSTRUCTIONS:
 - Use THIS formatting style for the concerns section: ${randomFormat}
 - Vary the introduction and conclusion wording - make it unique
 - Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
+- CRITICAL: Use ONLY the address shown below (already formatted correctly with NO eircode, NO county)
 
-LETTER STRUCTURE:
+LETTER STRUCTURE (copy this EXACTLY for the address and structure):
 ${letterAddress}
 
 ${formattedDate}
@@ -752,16 +758,67 @@ Generate the complete 1200-1400 word letter now:`;
     // RTF is simpler than DOCX and works everywhere
     const letterDocFilename = letterFilename.replace('.txt', '.doc');
     
-    // Convert letter to RTF format
-    function createRTF(text) {
+    // Convert letter to RTF format with proper letter formatting
+    function createRTF(text, firstName, lastName) {
       // RTF header
       let rtf = '{\\rtf1\\ansi\\deff0\n';
       rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}\n';
       rtf += '\\viewkind4\\uc1\\pard\\lang2057\\f0\\fs22\n\n';
       
-      // Convert text to RTF
+      // Parse the letter to extract address and body
       const lines = text.split('\n');
-      for (const line of lines) {
+      let addressLines = [];
+      let restOfLetter = [];
+      let foundDate = false;
+      
+      // Extract address (lines before the date)
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Check if this is the date line (contains "January", "February", etc.)
+        if (/\d+(st|nd|rd|th)\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}/.test(line)) {
+          foundDate = true;
+          restOfLetter = lines.slice(i); // Everything from date onwards
+          break;
+        } else if (line) {
+          addressLines.push(line);
+        }
+      }
+      
+      // If no date found, something is wrong - use original formatting
+      if (!foundDate) {
+        for (const line of lines) {
+          if (line.trim() === '') {
+            rtf += '\\par\n';
+          } else {
+            let escaped = line
+              .replace(/\\/g, '\\\\')
+              .replace(/\{/g, '\\{')
+              .replace(/\}/g, '\\}');
+            rtf += escaped + '\\par\n';
+          }
+        }
+        rtf += '}\n';
+        return rtf;
+      }
+      
+      // Format address on the right
+      // Right-aligned address
+      rtf += '\\qr\n'; // Right align
+      for (const line of addressLines) {
+        const escaped = line
+          .replace(/\\/g, '\\\\')
+          .replace(/\{/g, '\\{')
+          .replace(/\}/g, '\\}');
+        rtf += escaped + '\\par\n';
+      }
+      rtf += '\\par\\par\n'; // Extra spacing after address
+      
+      // Back to left align for rest of letter
+      rtf += '\\ql\n'; // Left align
+      
+      // Process rest of letter
+      for (const line of restOfLetter) {
         if (line.trim() === '') {
           rtf += '\\par\n';
         } else {
@@ -775,12 +832,16 @@ Generate the complete 1200-1400 word letter now:`;
           if (escaped.startsWith('Re:')) {
             rtf += '\\b ' + escaped + '\\b0\\par\n';
           }
-          // Make section headings bold (numbers, letters, or "**text**")
+          // Make section headings bold
           else if (/^(\d+\.|[A-Z]\)|\*\*|I+\.|[a-z]\))/.test(escaped) || escaped.includes('**')) {
-            // Remove ** markers and make bold
             escaped = escaped.replace(/\*\*/g, '');
             rtf += '\\b ' + escaped + '\\b0\\par\n';
-          } else {
+          } 
+          // Make signature bold
+          else if (escaped === 'Mise le Meas,' || escaped === firstName + ' ' + lastName) {
+            rtf += '\\b ' + escaped + '\\b0\\par\n';
+          }
+          else {
             rtf += escaped + '\\par\n';
           }
         }
@@ -790,7 +851,7 @@ Generate the complete 1200-1400 word letter now:`;
       return rtf;
     }
     
-    const letterRTF = createRTF(letterContent);
+    const letterRTF = createRTF(letterContent, firstName, lastName);
     
     // Upload DOC to Dropbox
     const dropboxDoc = await uploadToDropbox(letterRTF, letterDocFilename);
@@ -848,7 +909,7 @@ Generate the complete 1200-1400 word letter now:`;
     <ul>
       <li><strong>${inputsFilename}</strong> - Your form responses (text format)</li>
       <li><strong>${letterFilename}</strong> - Your objection letter (text format)</li>
-      <li><strong>${letterPDFFilename}</strong> - Your objection letter (PDF format - ready to submit)</li>
+      <li><strong>${letterDocFilename}</strong> - Your objection letter (Word format - ready to submit)</li>
     </ul>
     <p>All files have been saved to our shared Dropbox folder for committee records.</p>
   </div>
