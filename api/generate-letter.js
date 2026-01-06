@@ -102,6 +102,28 @@ function cleanText(text) {
     .trim();
 }
 
+// Extract last two lines of address, remove eircode
+function formatAddress(fullAddress) {
+  if (!fullAddress) return '';
+  
+  const lines = fullAddress.split(/[\n,]/).map(line => line.trim()).filter(line => line);
+  
+  // Remove eircode (Irish postcode format)
+  const linesWithoutEircode = lines.filter(line => {
+    const cleanLine = line.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    // Irish eircode pattern: A65F4E2, D02AF30, etc
+    const eircodePattern = /^[A-Z]\d{2}[A-Z0-9]{4}$/;
+    return !eircodePattern.test(cleanLine) && !line.toLowerCase().includes('eircode');
+  });
+  
+  // Get last two lines
+  if (linesWithoutEircode.length === 0) return '';
+  if (linesWithoutEircode.length === 1) return linesWithoutEircode[0];
+  
+  const lastTwo = linesWithoutEircode.slice(-2);
+  return lastTwo.join(',\n');
+}
+
 // Create formatted text file for inputs
 function createInputsTextFile(formData, firstName, lastName) {
   const now = new Date();
@@ -270,7 +292,11 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
       }],
       from: {
         email: 'inchsolaraction@gmail.com',
-        name: 'Inch Community Action Group'
+        name: 'Inch Killeagh Rural Preservation Group'
+      },
+      reply_to: {
+        email: 'inchsolaraction@gmail.com',
+        name: 'Inch Killeagh Rural Preservation Group'
       },
       content: [
         { type: 'text/plain', value: textBody },
@@ -378,7 +404,8 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid email address' });
     }
     
-    const address = cleanText(formData['Address'] || '');
+    const fullAddress = cleanText(formData['Address'] || '');
+    const letterAddress = formatAddress(fullAddress); // Last 2 lines, no eircode for letter
     const distanceRaw = cleanText(formData['How close do you live to the proposed solar development?\n'] || formData['How close do you live to the proposed solar development?'] || '');
     const distance = DISTANCE_UUID_MAP[distanceRaw] || distanceRaw;
     const occupation = cleanText(formData['What do you work at?'] || '');
@@ -548,10 +575,10 @@ module.exports = async (req, res) => {
     ];
     const randomFormat = formatStyles[Math.floor(Math.random() * formatStyles.length)];
     
-    const prompt = `Write a formal planning objection letter to Cork County Council for the Inch Solar Development.
+    const prompt = `Write a formal planning objection letter to Cork County Council for the Greenhills Renewable Energy Development.
 
 RESPONDENT: ${firstName} ${lastName}, ${occupation}
-Address: ${address} | Distance: ${distance}
+Address: ${letterAddress} | Distance: ${distance}
 
 SELECTED CONCERNS: ${selectedConcernLabels.join(', ')}
 
@@ -567,9 +594,38 @@ INSTRUCTIONS:
 - Use THIS formatting style for the concerns section: ${randomFormat}
 - Vary the introduction and conclusion wording - make it unique
 - Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
-- Structure: Address, Date, Council details, "Re: Objection [PLANNING REF - TO BE INSERTED]", "A Chara", grounds sections, conclusion, "Mise le Meas"
-- Professional tone, cite planning guidelines where relevant
-- Make the letter feel personal and unique, not template-like
+
+LETTER STRUCTURE:
+${letterAddress}
+
+[Date: Today's date]
+
+The Secretary,
+Planning Department,
+Cork County Council,
+County Hall,
+Cork.
+
+Re: Objection to Planning Application - Greenhills Renewable Energy Development
+
+A Chara,
+
+Planning Application Reference Number: (TBC)
+Applicant: Orsted Onshore Ireland Midco Ltd, construction of 328.28ha Solar Farm.
+Location: Knocknagappagh, Barnaviddane, Ballyneague, Ballydaniel, Youghalpark, Ballydaheen and Cornaveigh, Co. Cork.
+
+I am writing to formally object to the above planning application...
+
+[Body with grounds of objection - address each selected concern with respondent's words + facts]
+[Reference Irish planning guidelines where relevant]
+[Professional tone, varied sentence structure]
+[Include personal story/most important concerns if provided]
+
+[Conclusion]
+
+Mise le Meas,
+
+${firstName} ${lastName}
 
 Generate the complete 1200-1400 word letter now:`;
 
@@ -626,6 +682,97 @@ Generate the complete 1200-1400 word letter now:`;
     const dropboxLetter = await uploadToDropbox(letterContent, letterFilename);
     
     // Prepare email attachments
+    // Create PDF version of the letter
+    function createSimplePDF(text) {
+      // Simple PDF structure
+      const pdfLines = [];
+      pdfLines.push('%PDF-1.4');
+      pdfLines.push('1 0 obj');
+      pdfLines.push('<< /Type /Catalog /Pages 2 0 R >>');
+      pdfLines.push('endobj');
+      pdfLines.push('2 0 obj');
+      pdfLines.push('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+      pdfLines.push('endobj');
+      pdfLines.push('3 0 obj');
+      pdfLines.push('<< /Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 595 842] /Contents 5 0 R >>');
+      pdfLines.push('endobj');
+      pdfLines.push('4 0 obj');
+      pdfLines.push('<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>');
+      pdfLines.push('endobj');
+      pdfLines.push('5 0 obj');
+      
+      // Escape text for PDF
+      const escapedText = text
+        .replace(/\\/g, '\\\\')
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n');
+      
+      // Split into lines and create PDF stream
+      const lines = escapedText.split('\n');
+      const pdfContent = [];
+      pdfContent.push('BT');
+      pdfContent.push('/F1 11 Tf');
+      pdfContent.push('50 800 Td');
+      pdfContent.push('14 TL');
+      
+      for (const line of lines) {
+        if (line.length > 80) {
+          // Word wrap long lines
+          const words = line.split(' ');
+          let currentLine = '';
+          for (const word of words) {
+            if ((currentLine + word).length > 80) {
+              pdfContent.push(`(${currentLine.trim()}) Tj`);
+              pdfContent.push('T*');
+              currentLine = word + ' ';
+            } else {
+              currentLine += word + ' ';
+            }
+          }
+          if (currentLine) {
+            pdfContent.push(`(${currentLine.trim()}) Tj`);
+            pdfContent.push('T*');
+          }
+        } else {
+          pdfContent.push(`(${line}) Tj`);
+          pdfContent.push('T*');
+        }
+      }
+      
+      pdfContent.push('ET');
+      const streamContent = pdfContent.join('\n');
+      
+      pdfLines.push(`<< /Length ${streamContent.length} >>`);
+      pdfLines.push('stream');
+      pdfLines.push(streamContent);
+      pdfLines.push('endstream');
+      pdfLines.push('endobj');
+      pdfLines.push('xref');
+      pdfLines.push('0 6');
+      pdfLines.push('0000000000 65535 f ');
+      pdfLines.push('0000000009 00000 n ');
+      pdfLines.push('0000000058 00000 n ');
+      pdfLines.push('0000000115 00000 n ');
+      pdfLines.push('0000000214 00000 n ');
+      pdfLines.push('0000000308 00000 n ');
+      pdfLines.push('trailer');
+      pdfLines.push('<< /Size 6 /Root 1 0 R >>');
+      pdfLines.push('startxref');
+      pdfLines.push(`${pdfLines.join('\n').length + 10}`);
+      pdfLines.push('%%EOF');
+      
+      return pdfLines.join('\n');
+    }
+    
+    const letterPDF = createSimplePDF(letterContent);
+    const letterPDFFilename = letterFilename.replace('.txt', '.pdf');
+    
+    // Upload PDF to Dropbox too
+    const dropboxPDF = await uploadToDropbox(letterPDF, letterPDFFilename);
+    console.log('PDF uploaded to Dropbox:', dropboxPDF);
+    
     const attachments = [
       {
         content: Buffer.from(inputsContent).toString('base64'),
@@ -637,6 +784,12 @@ Generate the complete 1200-1400 word letter now:`;
         content: Buffer.from(letterContent).toString('base64'),
         filename: letterFilename,
         type: 'text/plain',
+        disposition: 'attachment'
+      },
+      {
+        content: Buffer.from(letterPDF).toString('base64'),
+        filename: letterPDFFilename,
+        type: 'application/pdf',
         disposition: 'attachment'
       }
     ];
@@ -665,15 +818,16 @@ Generate the complete 1200-1400 word letter now:`;
   
   <p>Dear ${firstName},</p>
   
-  <p>Thank you for using the Inch Solar Development Submission Generator created by the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
+  <p>Thank you for using the Greenhills Renewable Energy Development Objection Generator created by the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
   
   <div class="attachments">
     <h3>📎 ATTACHED FILES:</h3>
     <ul>
-      <li><strong>${inputsFilename}</strong> - Your form submissions (formatted for easy reading)</li>
-      <li><strong>${letterFilename}</strong> - Your generated objection letter (formatted and ready to submit)</li>
+      <li><strong>${inputsFilename}</strong> - Your form responses (text format)</li>
+      <li><strong>${letterFilename}</strong> - Your objection letter (text format)</li>
+      <li><strong>${letterPDFFilename}</strong> - Your objection letter (PDF format - ready to submit)</li>
     </ul>
-    <p>Both files have also been saved to our shared Dropbox folder for committee records.</p>
+    <p>All files have been saved to our shared Dropbox folder for committee records.</p>
   </div>
   
   <div class="section">
@@ -714,13 +868,53 @@ Generate the complete 1200-1400 word letter now:`;
 </body>
 </html>`;
     
-    const emailBodyText = `Your Personalized Objection Letter\n\n${generatedLetter}\n\nAttached: ${inputsFilename}, ${letterFilename}`;
+    // Create better plain text version
+    const emailBodyText = `
+INCH KILLEAGH RURAL PRESERVATION GROUP
+Planning Objection Service
+
+Dear ${firstName},
+
+Thank you for using our planning objection service for the proposed Greenhills Renewable Energy Development.
+
+Your personalized planning submission has been prepared based on your concerns. Please review the attached documents.
+
+ATTACHED FILES:
+- ${inputsFilename} (Your form responses)
+- ${letterFilename} (Your objection letter - TXT format)
+- ${letterFilename.replace('.txt', '.pdf')} (Your objection letter - PDF format)
+
+HOW TO SUBMIT YOUR OBJECTION:
+
+1. Open the attached PDF or copy text from the TXT file into Microsoft Word
+2. Edit as you see fit:
+   - Personalize any sections
+   - Add photos, maps, or evidence images
+   - Adjust wording to match your voice
+3. Save as PDF if using Word
+4. Submit online at: www.corkcoco.ie
+   - €20 submission fee required
+   - Planning Reference: (TBC)
+   - Submit within 35 days of application being lodged
+
+NEED HELP?
+Read Cork County Council's submission guidelines:
+https://www.corkcoco.ie/sites/default/files/2022-01/access-guidelines-for-making-a-submission-on-a-planning-application-pdf.pdf
+
+TO ENSURE YOU RECEIVE FUTURE UPDATES:
+1. Move this email to your inbox if it's in spam/promotions
+2. Mark as "Not Spam"
+3. Add inchsolaraction@gmail.com to your contacts
+
+In solidarity,
+Inch Killeagh Rural Preservation Group
+`;
     
     // Send email
     console.log('Sending email to:', email);
     const emailResult = await sendEmailViaSendGrid(
       email,
-      'Your Objection Letter - Inch Solar Development',
+      'Planning Objection Submission - Greenhills Renewable Energy Development',
       emailBodyHtml,
       emailBodyText,
       attachments
