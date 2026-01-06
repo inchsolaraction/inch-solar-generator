@@ -102,25 +102,46 @@ function cleanText(text) {
     .trim();
 }
 
-// Extract last two lines of address, remove eircode
+// Extract last two lines of address, remove eircode and counties
 function formatAddress(fullAddress) {
   if (!fullAddress) return '';
   
-  const lines = fullAddress.split(/[\n,]/).map(line => line.trim()).filter(line => line);
+  // Split by newlines or commas
+  let lines = fullAddress.split(/[\n,]/).map(line => line.trim()).filter(line => line);
   
-  // Remove eircode (Irish postcode format)
-  const linesWithoutEircode = lines.filter(line => {
+  // List of 32 Irish counties to remove
+  const countyPatterns = [
+    'Antrim', 'Armagh', 'Carlow', 'Cavan', 'Clare', 'Cork', 'Derry', 
+    'Donegal', 'Down', 'Dublin', 'Fermanagh', 'Galway', 'Kerry', 
+    'Kildare', 'Kilkenny', 'Laois', 'Leitrim', 'Limerick', 'Longford', 
+    'Louth', 'Mayo', 'Meath', 'Monaghan', 'Offaly', 'Roscommon', 
+    'Sligo', 'Tipperary', 'Tyrone', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'
+  ];
+  
+  // Remove eircode and county lines
+  const filteredLines = lines.filter(line => {
     const cleanLine = line.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    // Irish eircode pattern: A65F4E2, D02AF30, etc
+    
+    // Check if it's an eircode (pattern: Letter+2digits+4alphanumeric, e.g., P36CK00, D04K7X4)
     const eircodePattern = /^[A-Z]\d{2}[A-Z0-9]{4}$/;
-    return !eircodePattern.test(cleanLine) && !line.toLowerCase().includes('eircode');
+    if (eircodePattern.test(cleanLine)) {
+      return false; // Remove eircode
+    }
+    
+    // Check if line is just a county name
+    const lineUpper = line.toUpperCase().replace(/^CO\.?\s*/i, '').trim();
+    if (countyPatterns.some(county => lineUpper === county.toUpperCase())) {
+      return false; // Remove county
+    }
+    
+    return true;
   });
   
-  // Get last two lines
-  if (linesWithoutEircode.length === 0) return '';
-  if (linesWithoutEircode.length === 1) return linesWithoutEircode[0];
+  // Get last two non-empty lines
+  if (filteredLines.length === 0) return '';
+  if (filteredLines.length === 1) return filteredLines[0];
   
-  const lastTwo = linesWithoutEircode.slice(-2);
+  const lastTwo = filteredLines.slice(-2);
   return lastTwo.join(',\n');
 }
 
@@ -210,28 +231,8 @@ function createInputsTextFile(formData, firstName, lastName) {
 
 // Create formatted text file for letter
 function createLetterTextFile(letterText, firstName, lastName) {
-  const now = new Date();
-  const dd = String(now.getDate()).padStart(2, '0');
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const yyyy = now.getFullYear();
-  const hh = String(now.getHours()).padStart(2, '0');
-  const min = String(now.getMinutes()).padStart(2, '0');
-  const timestamp = `${dd}-${mm}-${yyyy} ${hh}:${min}`;
-  
-  let content = `${'='.repeat(80)}\n`;
-  content += `OBJECTION LETTER - INCH SOLAR DEVELOPMENT\n`;
-  content += `${'='.repeat(80)}\n\n`;
-  content += `Respondent: ${firstName} ${lastName}\n`;
-  content += `Generated: ${timestamp}\n\n`;
-  content += `${'='.repeat(80)}\n`;
-  content += `PLANNING OBJECTION LETTER\n`;
-  content += `${'='.repeat(80)}\n\n`;
-  content += letterText;
-  content += `\n\n${'='.repeat(80)}\n`;
-  content += `END OF LETTER\n`;
-  content += `${'='.repeat(80)}\n`;
-  
-  return content;
+  // Just return the letter text without any headers or footers
+  return letterText;
 }
 
 // Upload to Dropbox
@@ -575,6 +576,22 @@ module.exports = async (req, res) => {
     ];
     const randomFormat = formatStyles[Math.floor(Math.random() * formatStyles.length)];
     
+    // Generate today's date in proper format
+    const today = new Date();
+    const day = today.getDate();
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const month = monthNames[today.getMonth()];
+    const year = today.getFullYear();
+    
+    // Add ordinal suffix (st, nd, rd, th)
+    const getOrdinal = (n) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+    const formattedDate = `${getOrdinal(day)} ${month} ${year}`;
+    
     const prompt = `Write a formal planning objection letter to Cork County Council for the Greenhills Renewable Energy Development.
 
 RESPONDENT: ${firstName} ${lastName}, ${occupation}
@@ -598,7 +615,7 @@ INSTRUCTIONS:
 LETTER STRUCTURE:
 ${letterAddress}
 
-[Date: Today's date]
+${formattedDate}
 
 The Secretary,
 Planning Department,
@@ -681,96 +698,100 @@ Generate the complete 1200-1400 word letter now:`;
     const dropboxInputs = await uploadToDropbox(inputsContent, inputsFilename);
     const dropboxLetter = await uploadToDropbox(letterContent, letterFilename);
     
-    // Prepare email attachments
-    // Create PDF version of the letter
-    function createSimplePDF(text) {
-      // Simple PDF structure
-      const pdfLines = [];
-      pdfLines.push('%PDF-1.4');
-      pdfLines.push('1 0 obj');
-      pdfLines.push('<< /Type /Catalog /Pages 2 0 R >>');
-      pdfLines.push('endobj');
-      pdfLines.push('2 0 obj');
-      pdfLines.push('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-      pdfLines.push('endobj');
-      pdfLines.push('3 0 obj');
-      pdfLines.push('<< /Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 595 842] /Contents 5 0 R >>');
-      pdfLines.push('endobj');
-      pdfLines.push('4 0 obj');
-      pdfLines.push('<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>');
-      pdfLines.push('endobj');
-      pdfLines.push('5 0 obj');
-      
-      // Escape text for PDF
-      const escapedText = text
-        .replace(/\\/g, '\\\\')
-        .replace(/\(/g, '\\(')
-        .replace(/\)/g, '\\)')
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n');
-      
-      // Split into lines and create PDF stream
-      const lines = escapedText.split('\n');
-      const pdfContent = [];
-      pdfContent.push('BT');
-      pdfContent.push('/F1 11 Tf');
-      pdfContent.push('50 800 Td');
-      pdfContent.push('14 TL');
-      
-      for (const line of lines) {
-        if (line.length > 80) {
-          // Word wrap long lines
-          const words = line.split(' ');
-          let currentLine = '';
-          for (const word of words) {
-            if ((currentLine + word).length > 80) {
-              pdfContent.push(`(${currentLine.trim()}) Tj`);
-              pdfContent.push('T*');
-              currentLine = word + ' ';
-            } else {
-              currentLine += word + ' ';
-            }
-          }
-          if (currentLine) {
-            pdfContent.push(`(${currentLine.trim()}) Tj`);
-            pdfContent.push('T*');
-          }
-        } else {
-          pdfContent.push(`(${line}) Tj`);
-          pdfContent.push('T*');
-        }
-      }
-      
-      pdfContent.push('ET');
-      const streamContent = pdfContent.join('\n');
-      
-      pdfLines.push(`<< /Length ${streamContent.length} >>`);
-      pdfLines.push('stream');
-      pdfLines.push(streamContent);
-      pdfLines.push('endstream');
-      pdfLines.push('endobj');
-      pdfLines.push('xref');
-      pdfLines.push('0 6');
-      pdfLines.push('0000000000 65535 f ');
-      pdfLines.push('0000000009 00000 n ');
-      pdfLines.push('0000000058 00000 n ');
-      pdfLines.push('0000000115 00000 n ');
-      pdfLines.push('0000000214 00000 n ');
-      pdfLines.push('0000000308 00000 n ');
-      pdfLines.push('trailer');
-      pdfLines.push('<< /Size 6 /Root 1 0 R >>');
-      pdfLines.push('startxref');
-      pdfLines.push(`${pdfLines.join('\n').length + 10}`);
-      pdfLines.push('%%EOF');
-      
-      return pdfLines.join('\n');
-    }
-    
-    const letterPDF = createSimplePDF(letterContent);
+    // For PDF, we'll send the same text content but mark it as PDF type
+    // Most email clients and systems can handle text in PDF format
+    // This is simpler and more reliable than complex PDF generation
+    const letterPDF = letterContent; // Use same text content
     const letterPDFFilename = letterFilename.replace('.txt', '.pdf');
     
+    // Note: For a production system, you'd want to use a proper PDF library
+    // For now, we'll create a simple text-based PDF that works everywhere
+    const simplePDF = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 595 842]
+/Contents 4 0 R
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Courier
+>>
+>>
+>>
+>>
+endobj
+
+4 0 obj
+<<
+/Length ${Buffer.from(letterContent).length + 200}
+>>
+stream
+BT
+/F1 10 Tf
+50 800 Td
+12 TL
+${letterContent.split('\n').map(line => {
+  // Escape special PDF characters
+  const escaped = line.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  // Split long lines
+  if (escaped.length > 85) {
+    const words = escaped.split(' ');
+    let lines = [];
+    let currentLine = '';
+    words.forEach(word => {
+      if ((currentLine + word).length > 85) {
+        lines.push(currentLine.trim());
+        currentLine = word + ' ';
+      } else {
+        currentLine += word + ' ';
+      }
+    });
+    if (currentLine) lines.push(currentLine.trim());
+    return lines.map(l => `(${l}) Tj T*`).join('\n');
+  }
+  return `(${escaped}) Tj T*`;
+}).join('\n')}
+ET
+endstream
+endobj
+
+xref
+0 5
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000315 00000 n
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+${Buffer.from(letterContent).length + 600}
+%%EOF`;
+    
     // Upload PDF to Dropbox too
-    const dropboxPDF = await uploadToDropbox(letterPDF, letterPDFFilename);
+    const dropboxPDF = await uploadToDropbox(simplePDF, letterPDFFilename);
     console.log('PDF uploaded to Dropbox:', dropboxPDF);
     
     const attachments = [
@@ -787,7 +808,7 @@ Generate the complete 1200-1400 word letter now:`;
         disposition: 'attachment'
       },
       {
-        content: Buffer.from(letterPDF).toString('base64'),
+        content: Buffer.from(simplePDF).toString('base64'),
         filename: letterPDFFilename,
         type: 'application/pdf',
         disposition: 'attachment'
@@ -865,6 +886,12 @@ Generate the complete 1200-1400 word letter now:`;
   </div>
   
   <p><em>In solidarity,<br>Inch Killeagh Rural Preservation Group</em></p>
+  
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ccc; font-size: 12px; color: #666;">
+    <p>Inch Killeagh Rural Preservation Group | County Cork, Ireland<br>
+    Email: inchsolaraction@gmail.com</p>
+    <p style="font-size: 11px;">This email was sent regarding your submission to the Greenhills Renewable Energy Development objection service.</p>
+  </div>
 </body>
 </html>`;
     
