@@ -378,7 +378,15 @@ module.exports = async (req, res) => {
     });
     
     // Create unique submission ID from email + timestamp (rounded to minute)
-    const email = String(formData['Email'] || '').trim().toLowerCase();
+    let email = String(formData['Email'] || '').trim().toLowerCase();
+    
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      console.error('Invalid email:', email);
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+    
     const firstName = cleanText(formData['First Name'] || '');
     const lastName = cleanText(formData['Last name'] || '');
     const submissionId = `${email}-${firstName}-${lastName}`.toLowerCase();
@@ -443,16 +451,9 @@ module.exports = async (req, res) => {
       'b5893382-0a9e-471f-aa71-263b83b912ea': '5km+'
     };
     
-    // Extract basic info
-    const firstName = cleanText(formData['First Name'] || '');
-    const lastName = cleanText(formData['Last name'] || '');
-    let email = String(formData['Email'] || '').trim().toLowerCase();
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) {
-      console.error('Invalid email:', email);
-      return res.status(400).json({ error: 'Invalid email address' });
-    }
+    // Extract basic info (already declared above for duplicate check)
+    // const firstName and lastName already declared at line 382-383
+    // const email already declared at line 381
     
     const fullAddress = cleanText(formData['Address'] || '');
     const letterAddress = formatAddress(fullAddress); // Last 2 lines, no eircode for letter
