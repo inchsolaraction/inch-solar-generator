@@ -309,10 +309,10 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
         name: 'Inch Killeagh Rural Preservation Group'
       },
       headers: {
-        'X-Priority': '1',
-        'Importance': 'high',
-        'X-MSMail-Priority': 'High'
+        'X-Priority': '3',  // Normal priority (1=high can trigger spam)
+        'X-Entity-Ref-ID': 'inch-solar-objection'
       },
+      categories: ['planning-objection', 'community-service'],
       content: [
         { type: 'text/plain', value: textBody },
         { type: 'text/html', value: htmlBody }
@@ -669,6 +669,8 @@ INSTRUCTIONS:
 - Vary the introduction and conclusion wording - make it unique
 - Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
 - DO NOT include the sender's address - we will add that separately
+- CRITICAL: The site is 328.28 hectares (over 800 acres). Always use "800+ acres" or "over 800 acres", NEVER "500 acres"
+- DO NOT use HTML tags like <u>, <b>, <i> - use plain text only
 
 LETTER STRUCTURE (start with the date):
 ${formattedDate}
@@ -730,9 +732,17 @@ Generate the complete 1200-1400 word letter now:`;
     const generatedLetter = claudeResponse.content[0].text;
     console.log('Letter generated (' + generatedLetter.length + ' chars)');
     
+    // Clean up any HTML tags that Claude might have added
+    const cleanedLetter = generatedLetter
+      .replace(/<\/?u>/gi, '')  // Remove <u> and </u> tags
+      .replace(/<\/?b>/gi, '')  // Remove <b> and </b> tags
+      .replace(/<\/?i>/gi, '')  // Remove <i> and </i> tags
+      .replace(/<\/?em>/gi, '') // Remove <em> and </em> tags
+      .replace(/<\/?strong>/gi, ''); // Remove <strong> and </strong> tags
+    
     // PREPEND the formatted address to the letter
     // This way Claude never sees the full address and can't refuse
-    const letterWithAddress = letterAddress + '\n\n' + generatedLetter;
+    const letterWithAddress = letterAddress + '\n\n' + cleanedLetter;
     console.log('Address prepended to letter');
     
     // Create filenames with DD-MM-YYYY-HH-MM format
@@ -808,14 +818,24 @@ Generate the complete 1200-1400 word letter now:`;
       }
       
       // Format address on the right
-      // Right-aligned address
+      // Right-aligned address with name first
       rtf += '\\qr\n'; // Right align
+      
+      // Add name first
+      const fullName = firstName + ' ' + lastName;
+      rtf += fullName.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}') + '\\par\n';
+      
+      // Then add address lines (split by comma or newline)
       for (const line of addressLines) {
-        const escaped = line
-          .replace(/\\/g, '\\\\')
-          .replace(/\{/g, '\\{')
-          .replace(/\}/g, '\\}');
-        rtf += escaped + '\\par\n';
+        // Split lines that have commas
+        const subLines = line.split(',').map(s => s.trim()).filter(s => s);
+        for (const subLine of subLines) {
+          const escaped = subLine
+            .replace(/\\/g, '\\\\')
+            .replace(/\{/g, '\\{')
+            .replace(/\}/g, '\\}');
+          rtf += escaped + '\\par\n';
+        }
       }
       rtf += '\\par\\par\n'; // Extra spacing after address
       
@@ -1009,7 +1029,7 @@ Inch Killeagh Rural Preservation Group
     console.log('Sending email to:', email);
     const emailResult = await sendEmailViaSendGrid(
       email,
-      'Planning Objection Submission - Greenhills Renewable Energy Development',
+      `Your Planning Objection - Ref: ${firstName.substring(0,1)}${lastName.substring(0,3)}${dateStr}`,
       emailBodyHtml,
       emailBodyText,
       attachments
