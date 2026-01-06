@@ -128,9 +128,18 @@ function formatAddress(fullAddress) {
       return false; // Remove eircode
     }
     
-    // Check if line is just a county name
-    const lineUpper = line.toUpperCase().replace(/^CO\.?\s*/i, '').trim();
-    if (countyPatterns.some(county => lineUpper === county.toUpperCase())) {
+    // Check if line is a county name (with or without "Co." prefix)
+    const lineClean = line.trim().toUpperCase();
+    const lineWithoutCo = lineClean.replace(/^CO\.?\s*/i, '').trim();
+    
+    // Check both the full line and without "Co." prefix
+    if (countyPatterns.some(county => {
+      const countyUpper = county.toUpperCase();
+      return lineClean === countyUpper || 
+             lineClean === `CO. ${countyUpper}` ||
+             lineClean === `CO ${countyUpper}` ||
+             lineWithoutCo === countyUpper;
+    })) {
       return false; // Remove county
     }
     
@@ -299,6 +308,11 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
         email: 'inchsolaraction@gmail.com',
         name: 'Inch Killeagh Rural Preservation Group'
       },
+      headers: {
+        'X-Priority': '1',
+        'Importance': 'high',
+        'X-MSMail-Priority': 'High'
+      },
       content: [
         { type: 'text/plain', value: textBody },
         { type: 'text/html', value: htmlBody }
@@ -328,6 +342,19 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
   }
 }
 
+// Simple in-memory cache to prevent duplicate submissions within 5 minutes
+const recentSubmissions = new Map();
+
+// Clean up old entries every 10 minutes
+setInterval(() => {
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  for (const [key, timestamp] of recentSubmissions.entries()) {
+    if (timestamp < fiveMinutesAgo) {
+      recentSubmissions.delete(key);
+    }
+  }
+}, 10 * 60 * 1000);
+
 // Main handler
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -349,6 +376,28 @@ module.exports = async (req, res) => {
         }
       }
     });
+    
+    // Create unique submission ID from email + timestamp (rounded to minute)
+    const email = String(formData['Email'] || '').trim().toLowerCase();
+    const firstName = cleanText(formData['First Name'] || '');
+    const lastName = cleanText(formData['Last name'] || '');
+    const submissionId = `${email}-${firstName}-${lastName}`.toLowerCase();
+    
+    // Check if this is a duplicate submission within last 5 minutes
+    if (recentSubmissions.has(submissionId)) {
+      const lastSubmission = recentSubmissions.get(submissionId);
+      const timeSince = Date.now() - lastSubmission;
+      if (timeSince < 5 * 60 * 1000) { // 5 minutes
+        console.log('Duplicate submission detected - ignoring:', submissionId);
+        return res.status(200).json({ 
+          message: 'Duplicate submission - already processed',
+          status: 'ignored'
+        });
+      }
+    }
+    
+    // Mark this submission as processed
+    recentSubmissions.set(submissionId, Date.now());
     
     console.log('Processing form submission...');
     
@@ -698,101 +747,53 @@ Generate the complete 1200-1400 word letter now:`;
     const dropboxInputs = await uploadToDropbox(inputsContent, inputsFilename);
     const dropboxLetter = await uploadToDropbox(letterContent, letterFilename);
     
-    // For PDF, we'll send the same text content but mark it as PDF type
-    // Most email clients and systems can handle text in PDF format
-    // This is simpler and more reliable than complex PDF generation
-    const letterPDF = letterContent; // Use same text content
-    const letterPDFFilename = letterFilename.replace('.txt', '.pdf');
+    // Create RTF (Rich Text Format) file - opens perfectly in Word
+    // RTF is simpler than DOCX and works everywhere
+    const letterDocFilename = letterFilename.replace('.txt', '.doc');
     
-    // Note: For a production system, you'd want to use a proper PDF library
-    // For now, we'll create a simple text-based PDF that works everywhere
-    const simplePDF = `%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
-
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
-
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/MediaBox [0 0 595 842]
-/Contents 4 0 R
-/Resources <<
-/Font <<
-/F1 <<
-/Type /Font
-/Subtype /Type1
-/BaseFont /Courier
->>
->>
->>
->>
-endobj
-
-4 0 obj
-<<
-/Length ${Buffer.from(letterContent).length + 200}
->>
-stream
-BT
-/F1 10 Tf
-50 800 Td
-12 TL
-${letterContent.split('\n').map(line => {
-  // Escape special PDF characters
-  const escaped = line.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-  // Split long lines
-  if (escaped.length > 85) {
-    const words = escaped.split(' ');
-    let lines = [];
-    let currentLine = '';
-    words.forEach(word => {
-      if ((currentLine + word).length > 85) {
-        lines.push(currentLine.trim());
-        currentLine = word + ' ';
-      } else {
-        currentLine += word + ' ';
+    // Convert letter to RTF format
+    function createRTF(text) {
+      // RTF header
+      let rtf = '{\\rtf1\\ansi\\deff0\n';
+      rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}\n';
+      rtf += '\\viewkind4\\uc1\\pard\\lang2057\\f0\\fs22\n\n';
+      
+      // Convert text to RTF
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (line.trim() === '') {
+          rtf += '\\par\n';
+        } else {
+          // Escape special RTF characters
+          let escaped = line
+            .replace(/\\/g, '\\\\')
+            .replace(/\{/g, '\\{')
+            .replace(/\}/g, '\\}');
+          
+          // Make "Re:" line bold
+          if (escaped.startsWith('Re:')) {
+            rtf += '\\b ' + escaped + '\\b0\\par\n';
+          }
+          // Make section headings bold (numbers, letters, or "**text**")
+          else if (/^(\d+\.|[A-Z]\)|\*\*|I+\.|[a-z]\))/.test(escaped) || escaped.includes('**')) {
+            // Remove ** markers and make bold
+            escaped = escaped.replace(/\*\*/g, '');
+            rtf += '\\b ' + escaped + '\\b0\\par\n';
+          } else {
+            rtf += escaped + '\\par\n';
+          }
+        }
       }
-    });
-    if (currentLine) lines.push(currentLine.trim());
-    return lines.map(l => `(${l}) Tj T*`).join('\n');
-  }
-  return `(${escaped}) Tj T*`;
-}).join('\n')}
-ET
-endstream
-endobj
-
-xref
-0 5
-0000000000 65535 f
-0000000009 00000 n
-0000000058 00000 n
-0000000115 00000 n
-0000000315 00000 n
-trailer
-<<
-/Size 5
-/Root 1 0 R
->>
-startxref
-${Buffer.from(letterContent).length + 600}
-%%EOF`;
+      
+      rtf += '}\n';
+      return rtf;
+    }
     
-    // Upload PDF to Dropbox too
-    const dropboxPDF = await uploadToDropbox(simplePDF, letterPDFFilename);
-    console.log('PDF uploaded to Dropbox:', dropboxPDF);
+    const letterRTF = createRTF(letterContent);
+    
+    // Upload DOC to Dropbox
+    const dropboxDoc = await uploadToDropbox(letterRTF, letterDocFilename);
+    console.log('DOC file uploaded to Dropbox:', dropboxDoc);
     
     const attachments = [
       {
@@ -808,9 +809,9 @@ ${Buffer.from(letterContent).length + 600}
         disposition: 'attachment'
       },
       {
-        content: Buffer.from(simplePDF).toString('base64'),
-        filename: letterPDFFilename,
-        type: 'application/pdf',
+        content: Buffer.from(letterRTF).toString('base64'),
+        filename: letterDocFilename,
+        type: 'application/msword',
         disposition: 'attachment'
       }
     ];
@@ -909,7 +910,7 @@ Your personalized planning submission has been prepared based on your concerns. 
 ATTACHED FILES:
 - ${inputsFilename} (Your form responses)
 - ${letterFilename} (Your objection letter - TXT format)
-- ${letterFilename.replace('.txt', '.pdf')} (Your objection letter - PDF format)
+- ${letterFilename.replace('.txt', '.doc')} (Your objection letter - Word/DOC format)
 
 HOW TO SUBMIT YOUR OBJECTION:
 
