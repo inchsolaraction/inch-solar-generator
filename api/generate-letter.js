@@ -818,8 +818,24 @@ Generate the complete 1200-1400 word letter now:`;
       rtf += fullName.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}') + '\\par\n';
       
       // Parse full address and add each line
-      // Split by newlines and commas
-      const addressParts = formattedAddress.split(/[\n,]/).map(s => s.trim()).filter(s => s);
+      // Split by newlines and commas first
+      let addressParts = formattedAddress.split(/[\n,]/).map(s => s.trim()).filter(s => s);
+      
+      // If we only got 1 part (no newlines or commas), split it into logical parts
+      if (addressParts.length === 1 && addressParts[0].length > 20) {
+        const address = addressParts[0];
+        const words = address.split(/\s+/);
+        
+        // Try to split intelligently - roughly 3-4 words per line
+        const lines = [];
+        for (let i = 0; i < words.length; i += 3) {
+          const chunk = words.slice(i, i + 3).join(' ');
+          if (chunk) lines.push(chunk);
+        }
+        addressParts = lines;
+      }
+      
+      // Add each address part as a separate line
       for (const part of addressParts) {
         const escaped = part
           .replace(/\\/g, '\\\\')
