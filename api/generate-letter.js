@@ -774,19 +774,18 @@ Generate the complete 1200-1400 word letter now:`;
     const letterDocFilename = letterFilename.replace('.txt', '.doc');
     
     // Convert letter to RTF format with proper letter formatting
-    function createRTF(text, firstName, lastName) {
+    function createRTF(text, firstName, lastName, fullAddress) {
       // RTF header
       let rtf = '{\\rtf1\\ansi\\deff0\n';
       rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}\n';
       rtf += '\\viewkind4\\uc1\\pard\\lang2057\\f0\\fs22\n\n';
       
-      // Parse the letter to extract address and body
+      // Parse the letter to extract body (skip the pre-pended address)
       const lines = text.split('\n');
-      let addressLines = [];
       let restOfLetter = [];
       let foundDate = false;
       
-      // Extract address (lines before the date)
+      // Find where the date line starts (this is where the letter body begins)
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         
@@ -795,8 +794,6 @@ Generate the complete 1200-1400 word letter now:`;
           foundDate = true;
           restOfLetter = lines.slice(i); // Everything from date onwards
           break;
-        } else if (line) {
-          addressLines.push(line);
         }
       }
       
@@ -817,25 +814,23 @@ Generate the complete 1200-1400 word letter now:`;
         return rtf;
       }
       
-      // Format address on the right
-      // Right-aligned address with name first
+      // Format address on the right with name first
+      // Right-aligned address
       rtf += '\\qr\n'; // Right align
       
       // Add name first
       const fullName = firstName + ' ' + lastName;
       rtf += fullName.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}') + '\\par\n';
       
-      // Then add address lines (split by comma or newline)
-      for (const line of addressLines) {
-        // Split lines that have commas
-        const subLines = line.split(',').map(s => s.trim()).filter(s => s);
-        for (const subLine of subLines) {
-          const escaped = subLine
-            .replace(/\\/g, '\\\\')
-            .replace(/\{/g, '\\{')
-            .replace(/\}/g, '\\}');
-          rtf += escaped + '\\par\n';
-        }
+      // Parse full address and add each line
+      // Split by newlines and commas
+      const addressParts = fullAddress.split(/[\n,]/).map(s => s.trim()).filter(s => s);
+      for (const part of addressParts) {
+        const escaped = part
+          .replace(/\\/g, '\\\\')
+          .replace(/\{/g, '\\{')
+          .replace(/\}/g, '\\}');
+        rtf += escaped + '\\par\n';
       }
       rtf += '\\par\\par\n'; // Extra spacing after address
       
@@ -876,25 +871,13 @@ Generate the complete 1200-1400 word letter now:`;
       return rtf;
     }
     
-    const letterRTF = createRTF(letterContent, firstName, lastName);
+    const letterRTF = createRTF(letterContent, firstName, lastName, fullAddress);
     
     // Upload DOC to Dropbox
     const dropboxDoc = await uploadToDropbox(letterRTF, letterDocFilename);
     console.log('DOC file uploaded to Dropbox:', dropboxDoc);
     
     const attachments = [
-      {
-        content: Buffer.from(inputsContent).toString('base64'),
-        filename: inputsFilename,
-        type: 'text/plain',
-        disposition: 'attachment'
-      },
-      {
-        content: Buffer.from(letterContent).toString('base64'),
-        filename: letterFilename,
-        type: 'text/plain',
-        disposition: 'attachment'
-      },
       {
         content: Buffer.from(letterRTF).toString('base64'),
         filename: letterDocFilename,
@@ -930,38 +913,33 @@ Generate the complete 1200-1400 word letter now:`;
   <p>Thank you for using the Greenhills Renewable Energy Development Objection Generator created by the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
   
   <div class="attachments">
-    <h3>📎 ATTACHED FILES:</h3>
-    <ul>
-      <li><strong>${inputsFilename}</strong> - Your form responses (text format)</li>
-      <li><strong>${letterFilename}</strong> - Your objection letter (text format)</li>
-      <li><strong>${letterDocFilename}</strong> - Your objection letter (Word format - ready to submit)</li>
-    </ul>
-    <p>All files have been saved to our shared Dropbox folder for committee records.</p>
+    <h3>📎 ATTACHED FILE:</h3>
+    <p><strong>${letterDocFilename}</strong> - Your objection letter (Word format - ready to submit)</p>
+    <p>The letter has also been saved to our shared Dropbox folder for committee records.</p>
   </div>
   
   <div class="section">
-    <h3>📝 YOUR SUBMITTED CONCERNS:</h3>
-    ${inputSummary}
+    <h3>📝 YOUR FORM SUBMISSION:</h3>
+    <pre style="background: white; padding: 15px; border: 1px solid #ddd;">${inputsContent}</pre>
   </div>
   
-  <div class="letter-box">
-    <h3>📄 YOUR GENERATED OBJECTION LETTER:</h3>
-    <pre>${generatedLetter}</pre>
+  <div class="section">
+    <h3>📄 YOUR CONCERNS:</h3>
+    ${inputSummary}
   </div>
   
   <div class="instructions">
     <h3>📋 HOW TO SUBMIT YOUR OBJECTION:</h3>
     <ol>
-      <li><strong>Copy the letter text</strong> from the email above or open the attached .txt file</li>
-      <li><strong>Paste into Microsoft Word</strong> (or similar word processor) so you can format and upload it</li>
-      <li><strong>Edit as you see fit:</strong>
+      <li><strong>Open the attached Word document</strong> (.doc file)</li>
+      <li><strong>Review and edit as needed:</strong>
         <ul>
           <li>Personalize any sections you wish</li>
           <li>Add photos, maps, or evidence images that support your concerns</li>
           <li>Adjust wording to match your voice</li>
         </ul>
       </li>
-      <li><strong>Save as PDF or Word document</strong></li>
+      <li><strong>Save as PDF</strong> (File → Save As → PDF)</li>
       <li><strong>Submit online</strong> at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a>
         <ul>
           <li>€20 submission fee required</li>
@@ -992,21 +970,22 @@ Dear ${firstName},
 
 Thank you for using our planning objection service for the proposed Greenhills Renewable Energy Development.
 
-Your personalized planning submission has been prepared based on your concerns. Please review the attached documents.
+Your personalized planning submission has been prepared based on your concerns.
 
-ATTACHED FILES:
-- ${inputsFilename} (Your form responses)
-- ${letterFilename} (Your objection letter - TXT format)
-- ${letterFilename.replace('.txt', '.doc')} (Your objection letter - Word/DOC format)
+ATTACHED FILE:
+- ${letterDocFilename} (Your objection letter - Word/DOC format, ready to submit)
+
+YOUR FORM SUBMISSION:
+${inputsContent}
 
 HOW TO SUBMIT YOUR OBJECTION:
 
-1. Open the attached PDF or copy text from the TXT file into Microsoft Word
-2. Edit as you see fit:
+1. Open the attached Word document (.doc file)
+2. Review and edit as needed:
    - Personalize any sections
    - Add photos, maps, or evidence images
    - Adjust wording to match your voice
-3. Save as PDF if using Word
+3. Save as PDF (File → Save As → PDF)
 4. Submit online at: www.corkcoco.ie
    - €20 submission fee required
    - Planning Reference: (TBC)
