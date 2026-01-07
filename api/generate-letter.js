@@ -106,9 +106,6 @@ function cleanText(text) {
 function formatAddress(fullAddress) {
   if (!fullAddress) return '';
   
-  // Split by newlines or commas
-  let lines = fullAddress.split(/[\n,]/).map(line => line.trim()).filter(line => line);
-  
   // List of 32 Irish counties to remove
   const countyPatterns = [
     'Antrim', 'Armagh', 'Carlow', 'Cavan', 'Clare', 'Cork', 'Derry', 
@@ -118,36 +115,41 @@ function formatAddress(fullAddress) {
     'Sligo', 'Tipperary', 'Tyrone', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'
   ];
   
-  // Remove eircode and county lines
-  const filteredLines = lines.filter(line => {
-    const cleanLine = line.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    
-    // Check if it's an eircode (pattern: Letter+2digits+4alphanumeric, e.g., P36CK00, D04K7X4)
-    const eircodePattern = /^[A-Z]\d{2}[A-Z0-9]{4}$/;
-    if (eircodePattern.test(cleanLine)) {
-      return false; // Remove eircode
-    }
-    
-    // Check if line is a county name (with or without "Co." prefix)
-    const lineClean = line.trim().toUpperCase();
-    const lineWithoutCo = lineClean.replace(/^CO\.?\s*/i, '').trim();
-    
-    // Check both the full line and without "Co." prefix
-    if (countyPatterns.some(county => {
-      const countyUpper = county.toUpperCase();
-      return lineClean === countyUpper || 
-             lineClean === `CO. ${countyUpper}` ||
-             lineClean === `CO ${countyUpper}` ||
-             lineWithoutCo === countyUpper;
-    })) {
-      return false; // Remove county
-    }
-    
-    return true;
+  // First, remove eircode from the text (pattern: Letter+2digits+4alphanumeric)
+  // Match it anywhere in the string
+  let cleaned = fullAddress.replace(/\b[A-Z]\d{2}\s?[A-Z0-9]{4}\b/gi, '').trim();
+  
+  // Remove county names from anywhere in the text
+  countyPatterns.forEach(county => {
+    // Remove "Co. County", "Co County", or just "County"
+    const regex1 = new RegExp(`\\b(Co\\.?\\s+)?${county}\\b`, 'gi');
+    cleaned = cleaned.replace(regex1, '').trim();
   });
   
-  // Get last two non-empty lines
-  if (filteredLines.length === 0) return '';
+  // Clean up multiple spaces and trailing commas/spaces
+  cleaned = cleaned.replace(/\s+/g, ' ').replace(/,\s*,/g, ',').replace(/,\s*$/g, '').trim();
+  
+  // Now split by newlines or commas to get individual parts
+  let parts = cleaned.split(/[\n,]/).map(p => p.trim()).filter(p => p);
+  
+  // If we only have one part left, try to split it intelligently
+  if (parts.length === 1 && parts[0].length > 30) {
+    // Likely all on one line - try to extract just the last meaningful town/area
+    // Look for capitalized words that are likely town names
+    const words = parts[0].split(/\s+/);
+    // Take the last 2-3 meaningful words
+    if (words.length > 3) {
+      parts = words.slice(-2);
+    }
+  }
+  
+  // Get last two parts
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  
+  const lastTwo = parts.slice(-2);
+  return lastTwo.join(',\n');
+}
   if (filteredLines.length === 1) return filteredLines[0];
   
   const lastTwo = filteredLines.slice(-2);
@@ -391,11 +393,11 @@ module.exports = async (req, res) => {
     const lastName = cleanText(formData['Last name'] || '');
     const submissionId = `${email}-${firstName}-${lastName}`.toLowerCase();
     
-    // Check if this is a duplicate submission within last 5 minutes
+    // Check if this is a duplicate submission within last 15 minutes
     if (recentSubmissions.has(submissionId)) {
       const lastSubmission = recentSubmissions.get(submissionId);
       const timeSince = Date.now() - lastSubmission;
-      if (timeSince < 5 * 60 * 1000) { // 5 minutes
+      if (timeSince < 15 * 60 * 1000) { // 15 minutes
         console.log('Duplicate submission detected - ignoring:', submissionId);
         return res.status(200).json({ 
           message: 'Duplicate submission - already processed',
@@ -918,14 +920,14 @@ Generate the complete 1200-1400 word letter now:`;
     <p>The letter has also been saved to our shared Dropbox folder for committee records.</p>
   </div>
   
-  <div class="section">
-    <h3>📝 YOUR FORM SUBMISSION:</h3>
-    <pre style="background: white; padding: 15px; border: 1px solid #ddd;">${inputsContent}</pre>
+  <div class="letter-box">
+    <h3>📄 YOUR GENERATED OBJECTION LETTER:</h3>
+    <pre>${letterContent}</pre>
   </div>
   
   <div class="section">
-    <h3>📄 YOUR CONCERNS:</h3>
-    ${inputSummary}
+    <h3>📝 YOUR FORM INPUTS (FOR REFERENCE):</h3>
+    <pre style="background: white; padding: 15px; border: 1px solid #ddd;">${inputsContent}</pre>
   </div>
   
   <div class="instructions">
@@ -939,12 +941,11 @@ Generate the complete 1200-1400 word letter now:`;
           <li>Adjust wording to match your voice</li>
         </ul>
       </li>
-      <li><strong>Save as PDF</strong> (File → Save As → PDF)</li>
       <li><strong>Submit online</strong> at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a>
         <ul>
           <li>€20 submission fee required</li>
           <li>Include planning reference: [PLANNING REF - TO BE INSERTED]</li>
-          <li>Submit within 35 days of application being lodged</li>
+          <li><strong>Closing date for objections is Tuesday 3rd February</strong></li>
         </ul>
       </li>
       <li><strong>Need help?</strong> Read Cork County Council's submission guidelines: <a href="https://www.corkcoco.ie/sites/default/files/2022-01/access-guidelines-for-making-a-submission-on-a-planning-application-pdf.pdf">View Guidelines (PDF)</a></li>
