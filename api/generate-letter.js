@@ -283,7 +283,7 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
         subject: subject
       }],
       from: {
-        email: 'inchsolaraction@gmail.com',
+        email: 'noreply@greenhillssolarobjection.com',
         name: 'Inch Killeagh Rural Preservation Group'
       },
       reply_to: {
