@@ -115,40 +115,19 @@ function formatAddress(fullAddress) {
     'Sligo', 'Tipperary', 'Tyrone', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'
   ];
   
-  // First, remove eircode from the text (pattern: Letter+2digits+4alphanumeric)
-  // Match it anywhere in the string
+  // Remove eircode (pattern: Letter+2digits+4alphanumeric)
   let cleaned = fullAddress.replace(/\b[A-Z]\d{2}\s?[A-Z0-9]{4}\b/gi, '').trim();
   
-  // Remove county names from anywhere in the text
+  // Remove county names
   countyPatterns.forEach(county => {
-    // Remove "Co. County", "Co County", or just "County"
-    const regex1 = new RegExp(`\\b(Co\\.?\\s+)?${county}\\b`, 'gi');
-    cleaned = cleaned.replace(regex1, '').trim();
+    const regex = new RegExp(`\\b(Co\\.?\\s+)?${county}\\b`, 'gi');
+    cleaned = cleaned.replace(regex, '').trim();
   });
   
-  // Clean up multiple spaces and trailing commas/spaces
-  cleaned = cleaned.replace(/\s+/g, ' ').replace(/,\s*,/g, ',').replace(/,\s*$/g, '').trim();
+  // Clean up multiple spaces, commas
+  cleaned = cleaned.replace(/\s+/g, ' ').replace(/,\s*,/g, ',').replace(/,\s*$/g, '').replace(/^\s*,\s*/, '').trim();
   
-  // Now split by newlines or commas to get individual parts
-  let parts = cleaned.split(/[\n,]/).map(p => p.trim()).filter(p => p);
-  
-  // If we only have one part left, try to split it intelligently
-  if (parts.length === 1 && parts[0].length > 30) {
-    // Likely all on one line - try to extract just the last meaningful town/area
-    // Look for capitalized words that are likely town names
-    const words = parts[0].split(/\s+/);
-    // Take the last 2-3 meaningful words
-    if (words.length > 3) {
-      parts = words.slice(-2);
-    }
-  }
-  
-  // Get last two parts
-  if (parts.length === 0) return '';
-  if (parts.length === 1) return parts[0];
-  
-  const lastTwo = parts.slice(-2);
-  return lastTwo.join(',\n');
+  return cleaned;
 }
 
 // Create formatted text file for inputs
