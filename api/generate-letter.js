@@ -150,11 +150,6 @@ function formatAddress(fullAddress) {
   const lastTwo = parts.slice(-2);
   return lastTwo.join(',\n');
 }
-  if (filteredLines.length === 1) return filteredLines[0];
-  
-  const lastTwo = filteredLines.slice(-2);
-  return lastTwo.join(',\n');
-}
 
 // Create formatted text file for inputs
 function createInputsTextFile(formData, firstName, lastName) {
