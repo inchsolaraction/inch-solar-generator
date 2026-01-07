@@ -378,6 +378,9 @@ module.exports = async (req, res) => {
       }
     });
     
+    // Debug: Log all field keys to help identify address field
+    console.log('Form field keys:', Object.keys(formData).join(', '));
+    
     // Create unique submission ID from email + timestamp (rounded to minute)
     let email = String(formData['Email'] || '').trim().toLowerCase();
     
@@ -456,7 +459,15 @@ module.exports = async (req, res) => {
     // const firstName and lastName already declared at line 382-383
     // const email already declared at line 381
     
-    const fullAddress = cleanText(formData['Address'] || '');
+    // Try multiple possible field names for address
+    const fullAddress = cleanText(
+      formData['Address'] || 
+      formData['What is your address?'] || 
+      formData['Your Address'] ||
+      formData['address'] ||
+      ''
+    );
+    
     const letterAddress = formatAddress(fullAddress); // Last 2 lines, no eircode for letter
     
     // Debug logging
@@ -767,8 +778,8 @@ Generate the complete 1200-1400 word letter now:`;
     
     // Upload to Dropbox
     console.log('Uploading to Dropbox...');
-    // Create subfolder name from person's name (sanitized)
-    const subfolderName = `${firstName}${lastName}`.replace(/[^a-zA-Z0-9]/g, '');
+    // Create subfolder name from person's name + date (sanitized)
+    const subfolderName = `${firstName}${lastName}-${dateStr}`.replace(/[^a-zA-Z0-9-]/g, '');
     const dropboxInputs = await uploadToDropbox(inputsContent, inputsFilename, subfolderName);
     // Note: We don't upload the .txt version of the letter, only the .doc
     
@@ -1019,11 +1030,11 @@ Inch Killeagh Rural Preservation Group
     return res.status(200).json({
       success: true,
       message: 'Letter generated, emailed, and saved',
-      letter_length: generatedLetter.length,
+      letter_length: cleanedLetter.length,
       email_status: emailResult,
-      dropbox_status: { inputs: dropboxInputs, letter: dropboxLetter },
-      files: { inputs: inputsFilename, letter: letterFilename },
-      version: '3.0-final'
+      dropbox_status: { inputs: dropboxInputs, doc: dropboxDoc },
+      files: { inputs: inputsFilename, doc: letterDocFilename },
+      version: '3.0-v10'
     });
     
   } catch (error) {
