@@ -152,10 +152,12 @@ function createInputsTextFile(formData, firstName, lastName) {
   // Add basic fields
   const basicFields = ['First Name', 'Last name', 'Email', 'Address', 'What do you work at?'];
   const distanceField = 'How close do you live to the proposed solar development?';
+  const ageField = 'If you are under 18 year old, please state your age.';
   
   if (formData['First Name']) content += `First Name: ${formData['First Name']}\n\n`;
   if (formData['Last name']) content += `Last Name: ${formData['Last name']}\n\n`;
   if (formData['Email']) content += `Email: ${formData['Email']}\n\n`;
+  if (formData[ageField]) content += `Age: ${formData[ageField]} (under 18)\n\n`;
   if (formData['Address']) content += `Address:\n${formData['Address']}\n\n`;
   if (formData[distanceField]) content += `Distance from Development: ${formData[distanceField]}\n\n`;
   if (formData['What do you work at?']) content += `Occupation: ${formData['What do you work at?']}\n\n`;
@@ -427,16 +429,24 @@ module.exports = async (req, res) => {
     };
     
     const DISTANCE_UUID_MAP = {
-      '849fda9b-84f1-48e6-9bfa-f24c29a7ea0a': '<500m',
-      '98ba1248-f87b-4b89-9f81-4a57ddd37237': '<1km',
-      '33468851-48d5-4e2c-881d-369540cf00c0': '1-3km',
-      '0ee91f31-2e21-44d8-91b4-fa4015e2d91a': '3-5km',
+      '849fda9b-84f1-48e6-9bfa-f24c29a7ea0a': '<50m',
+      'ab07a89b-e0b3-4564-827c-bb9c0725cab2': '50-200m',
+      'f4eb90ad-4143-4eca-8224-0b9ddcf74fd3': '200-500m',
+      '98ba1248-f87b-4b89-9f81-4a57ddd37237': '500-1km',
+      '33468851-48d5-4e2c-881d-369540cf00c0': '1-5km',
       'b5893382-0a9e-471f-aa71-263b83b912ea': '5km+'
     };
     
     // Extract basic info (already declared above for duplicate check)
     // const firstName and lastName already declared at line 382-383
     // const email already declared at line 381
+    
+    // NEW: Extract age if provided (for under-18 users)
+    const age = cleanText(
+      formData['7852d057-6fc2-4dfd-adfe-a073ca70abf1'] || 
+      formData['If you are under 18 year old, please state your age.'] || 
+      ''
+    );
     
     // Try multiple possible field names for address
     // The Tally field has ID question_62blDP
@@ -454,9 +464,12 @@ module.exports = async (req, res) => {
     // Debug logging
     console.log('Full address:', fullAddress);
     console.log('Formatted letter address:', letterAddress);
+    console.log('Age (if under 18):', age);
     
     const distanceRaw = cleanText(formData['How close do you live to the proposed solar development?\n'] || formData['How close do you live to the proposed solar development?'] || '');
     const distance = DISTANCE_UUID_MAP[distanceRaw] || distanceRaw;
+    console.log('Distance from development:', distance);
+    
     const occupation = cleanText(formData['What do you work at?'] || '');
     
     // Parse selected concerns from UUID string or array
@@ -644,8 +657,15 @@ module.exports = async (req, res) => {
 
 Write a formal planning objection letter to Cork County Council for the Greenhills Renewable Energy Development.
 
-RESPONDENT: ${firstName} ${lastName}, ${occupation}
-Distance from site: ${distance}
+RESPONDENT: ${firstName} ${lastName}${age ? `, age ${age}` : ''}${occupation ? `, ${occupation}` : ''}
+Distance from site: ${distance}${distance && !distance.includes('5km+') ? ' (CLOSE PROXIMITY - emphasize impact)' : ''}
+
+${age ? `CRITICAL - CHILD'S VOICE: This letter is being written by a ${age}-year-old child. Write in a voice appropriate for their age:
+- Ages 8-10: Simple, honest language. Short sentences. Express feelings directly. Focus on what they can see/hear/feel.
+- Ages 11-13: More structured but still youthful. Use "I worry about..." and "This makes me feel..." Natural concerns about future, nature, safety.
+- Ages 14-17: More sophisticated but still teenage voice. Can discuss broader issues but keep it genuine and personal, not overly formal.
+Keep it authentic - adults can tell when a child didn't write something themselves. Use their actual words from the form.
+` : ''}
 
 SELECTED CONCERNS: ${selectedConcernLabels.join(', ')}
 
@@ -657,10 +677,11 @@ ${committeeContext}
 
 INSTRUCTIONS:
 - EXACTLY 1200-1400 words total (strict requirement)
-- Formal Cork County Council format
+- Formal Cork County Council format${age ? ' but written in the voice of a ' + age + '-year-old' : ''}
 - Use THIS formatting style for the concerns section: ${randomFormat}
 - Vary the introduction and conclusion wording - make it unique
 - Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
+${distance && !distance.includes('5km+') ? `- EMPHASIZE PROXIMITY: The respondent lives ${distance} from the development - this is VERY close. Stress immediate visual, noise, and environmental impacts on their daily life and property.` : ''}
 - DO NOT include the sender's address - we will add that separately
 - CRITICAL: The site is 328.28 hectares (over 800 acres). Always use "800+ acres" or "over 800 acres", NEVER "500 acres"
 - DO NOT use HTML tags like <u>, <b>, <i> - use plain text only
@@ -686,7 +707,7 @@ I am writing to formally object to the above planning application...
 
 [Body with grounds of objection - address each selected concern with respondent's words + facts]
 [Reference Irish planning guidelines where relevant]
-[Professional tone, varied sentence structure]
+${age ? '[Personal, age-appropriate tone - what a ' + age + '-year-old would genuinely worry about]' : '[Professional tone, varied sentence structure]'}
 [Include personal story/most important concerns if provided]
 
 [Conclusion]
