@@ -460,7 +460,9 @@ module.exports = async (req, res) => {
     // const email already declared at line 381
     
     // Try multiple possible field names for address
+    // The Tally field has ID question_62blDP
     const fullAddress = cleanText(
+      formData['question_62blDP'] ||  // Tally question ID
       formData['Address'] || 
       formData['What is your address?'] || 
       formData['Your Address'] ||
