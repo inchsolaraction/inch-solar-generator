@@ -759,8 +759,9 @@ Generate the complete 1200-1400 word letter now:`;
     
     // Upload to Dropbox
     console.log('Uploading to Dropbox...');
-    // Create subfolder name from person's name + date (sanitized)
-    const subfolderName = `${firstName}${lastName}-${dateStr}`.replace(/[^a-zA-Z0-9-]/g, '');
+    // Create UNIQUE subfolder name from person's name + date + time (sanitized)
+    // This ensures no duplicates even if same person submits multiple times
+    const subfolderName = `${firstName}${lastName}-${dateStr}-${timeStr}`.replace(/[^a-zA-Z0-9-]/g, '');
     const dropboxInputs = await uploadToDropbox(inputsContent, inputsFilename, subfolderName);
     // Note: We don't upload the .txt version of the letter, only the .doc
     
@@ -822,14 +823,14 @@ Generate the complete 1200-1400 word letter now:`;
       let addressParts = formattedAddress.split(/[\n,]/).map(s => s.trim()).filter(s => s);
       
       // If we only got 1 part (no newlines or commas), split it into logical parts
-      if (addressParts.length === 1 && addressParts[0].length > 20) {
+      if (addressParts.length === 1 && addressParts[0].length > 15) {
         const address = addressParts[0];
         const words = address.split(/\s+/);
         
-        // Try to split intelligently - roughly 3-4 words per line
+        // Split intelligently - 2 words per line for cleaner formatting
         const lines = [];
-        for (let i = 0; i < words.length; i += 3) {
-          const chunk = words.slice(i, i + 3).join(' ');
+        for (let i = 0; i < words.length; i += 2) {
+          const chunk = words.slice(i, i + 2).join(' ');
           if (chunk) lines.push(chunk);
         }
         addressParts = lines;
