@@ -242,7 +242,7 @@ function createLetterTextFile(letterText, firstName, lastName) {
 }
 
 // Upload to Dropbox
-async function uploadToDropbox(content, fileName) {
+async function uploadToDropbox(content, fileName, subfolder = '') {
   const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN;
   
   if (!dropboxToken) {
@@ -253,6 +253,10 @@ async function uploadToDropbox(content, fileName) {
   try {
     const buffer = Buffer.from(content, 'utf8');
     
+    // Build path with subfolder if provided
+    const basePath = '/Inch Solar Objections';
+    const fullPath = subfolder ? `${basePath}/${subfolder}/${fileName}` : `${basePath}/${fileName}`;
+    
     const response = await makeRequest(
       {
         hostname: 'content.dropboxapi.com',
@@ -262,7 +266,7 @@ async function uploadToDropbox(content, fileName) {
           'Authorization': `Bearer ${dropboxToken}`,
           'Content-Type': 'application/octet-stream',
           'Dropbox-API-Arg': JSON.stringify({
-            path: `/Inch Solar Objections/${fileName}`,
+            path: fullPath,
             mode: 'add',
             autorename: true,
             mute: false
@@ -272,7 +276,7 @@ async function uploadToDropbox(content, fileName) {
       buffer
     );
     
-    console.log('Uploaded to Dropbox:', fileName);
+    console.log('Uploaded to Dropbox:', fullPath);
     return { success: true, path: response.path_display };
     
   } catch (error) {
@@ -763,15 +767,17 @@ Generate the complete 1200-1400 word letter now:`;
     
     // Upload to Dropbox
     console.log('Uploading to Dropbox...');
-    const dropboxInputs = await uploadToDropbox(inputsContent, inputsFilename);
-    const dropboxLetter = await uploadToDropbox(letterContent, letterFilename);
+    // Create subfolder name from person's name (sanitized)
+    const subfolderName = `${firstName}${lastName}`.replace(/[^a-zA-Z0-9]/g, '');
+    const dropboxInputs = await uploadToDropbox(inputsContent, inputsFilename, subfolderName);
+    // Note: We don't upload the .txt version of the letter, only the .doc
     
     // Create RTF (Rich Text Format) file - opens perfectly in Word
     // RTF is simpler than DOCX and works everywhere
     const letterDocFilename = letterFilename.replace('.txt', '.doc');
     
     // Convert letter to RTF format with proper letter formatting
-    function createRTF(text, firstName, lastName, fullAddress) {
+    function createRTF(text, firstName, lastName, formattedAddress) {
       // RTF header
       let rtf = '{\\rtf1\\ansi\\deff0\n';
       rtf += '{\\fonttbl{\\f0\\fnil\\fcharset0 Times New Roman;}}\n';
@@ -821,7 +827,7 @@ Generate the complete 1200-1400 word letter now:`;
       
       // Parse full address and add each line
       // Split by newlines and commas
-      const addressParts = fullAddress.split(/[\n,]/).map(s => s.trim()).filter(s => s);
+      const addressParts = formattedAddress.split(/[\n,]/).map(s => s.trim()).filter(s => s);
       for (const part of addressParts) {
         const escaped = part
           .replace(/\\/g, '\\\\')
@@ -868,10 +874,10 @@ Generate the complete 1200-1400 word letter now:`;
       return rtf;
     }
     
-    const letterRTF = createRTF(letterContent, firstName, lastName, fullAddress);
+    const letterRTF = createRTF(letterContent, firstName, lastName, letterAddress);
     
     // Upload DOC to Dropbox
-    const dropboxDoc = await uploadToDropbox(letterRTF, letterDocFilename);
+    const dropboxDoc = await uploadToDropbox(letterRTF, letterDocFilename, subfolderName);
     console.log('DOC file uploaded to Dropbox:', dropboxDoc);
     
     const attachments = [
