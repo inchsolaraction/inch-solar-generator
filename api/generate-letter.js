@@ -140,10 +140,7 @@ function createInputsTextFile(formData, firstName, lastName) {
   const min = String(now.getMinutes()).padStart(2, '0');
   const timestamp = `${dd}-${mm}-${yyyy} ${hh}:${min}`;
   
-  let content = `${'='.repeat(80)}\n`;
-  content += `TALLY FORM SUBMISSION - USER INPUTS\n`;
-  content += `${'='.repeat(80)}\n\n`;
-  content += `Respondent: ${firstName} ${lastName}\n`;
+  let content = `Respondent: ${firstName} ${lastName}\n`;
   content += `Generated: ${timestamp}\n\n`;
   content += `${'='.repeat(80)}\n`;
   content += `RESPONDENT INFORMATION\n`;
@@ -152,12 +149,10 @@ function createInputsTextFile(formData, firstName, lastName) {
   // Add basic fields
   const basicFields = ['First Name', 'Last name', 'Email', 'Address', 'What do you work at?'];
   const distanceField = 'How close do you live to the proposed solar development?';
-  const ageField = 'If you are under 18 year old, please state your age.';
   
   if (formData['First Name']) content += `First Name: ${formData['First Name']}\n\n`;
   if (formData['Last name']) content += `Last Name: ${formData['Last name']}\n\n`;
   if (formData['Email']) content += `Email: ${formData['Email']}\n\n`;
-  if (formData[ageField]) content += `Age: ${formData[ageField]} (under 18)\n\n`;
   if (formData['Address']) content += `Address:\n${formData['Address']}\n\n`;
   if (formData[distanceField]) content += `Distance from Development: ${formData[distanceField]}\n\n`;
   if (formData['What do you work at?']) content += `Occupation: ${formData['What do you work at?']}\n\n`;
@@ -441,13 +436,6 @@ module.exports = async (req, res) => {
     // const firstName and lastName already declared at line 382-383
     // const email already declared at line 381
     
-    // NEW: Extract age if provided (for under-18 users)
-    const age = cleanText(
-      formData['7852d057-6fc2-4dfd-adfe-a073ca70abf1'] || 
-      formData['If you are under 18 year old, please state your age.'] || 
-      ''
-    );
-    
     // Try multiple possible field names for address
     // The Tally field has ID question_62blDP
     const fullAddress = cleanText(
@@ -464,7 +452,6 @@ module.exports = async (req, res) => {
     // Debug logging
     console.log('Full address:', fullAddress);
     console.log('Formatted letter address:', letterAddress);
-    console.log('Age (if under 18):', age);
     
     const distanceRaw = cleanText(formData['How close do you live to the proposed solar development?\n'] || formData['How close do you live to the proposed solar development?'] || '');
     const distance = DISTANCE_UUID_MAP[distanceRaw] || distanceRaw;
@@ -657,15 +644,8 @@ module.exports = async (req, res) => {
 
 Write a formal planning objection letter to Cork County Council for the Greenhills Renewable Energy Development.
 
-RESPONDENT: ${firstName} ${lastName}${age ? `, age ${age}` : ''}${occupation ? `, ${occupation}` : ''}
+RESPONDENT: ${firstName} ${lastName}${occupation ? `, ${occupation}` : ''}
 Distance from site: ${distance}${distance && !distance.includes('5km+') ? ' (CLOSE PROXIMITY - emphasize impact)' : ''}
-
-${age ? `CRITICAL - CHILD'S VOICE: This letter is being written by a ${age}-year-old child. Write in a voice appropriate for their age:
-- Ages 8-10: Simple, honest language. Short sentences. Express feelings directly. Focus on what they can see/hear/feel.
-- Ages 11-13: More structured but still youthful. Use "I worry about..." and "This makes me feel..." Natural concerns about future, nature, safety.
-- Ages 14-17: More sophisticated but still teenage voice. Can discuss broader issues but keep it genuine and personal, not overly formal.
-Keep it authentic - adults can tell when a child didn't write something themselves. Use their actual words from the form.
-` : ''}
 
 SELECTED CONCERNS: ${selectedConcernLabels.join(', ')}
 
@@ -677,7 +657,7 @@ ${committeeContext}
 
 INSTRUCTIONS:
 - EXACTLY 1200-1400 words total (strict requirement)
-- Formal Cork County Council format${age ? ' but written in the voice of a ' + age + '-year-old' : ''}
+- Formal Cork County Council format
 - Use THIS formatting style for the concerns section: ${randomFormat}
 - Vary the introduction and conclusion wording - make it unique
 - Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
@@ -685,6 +665,7 @@ ${distance && !distance.includes('5km+') ? `- EMPHASIZE PROXIMITY: The responden
 - DO NOT include the sender's address - we will add that separately
 - CRITICAL: The site is 328.28 hectares (over 800 acres). Always use "800+ acres" or "over 800 acres", NEVER "500 acres"
 - DO NOT use HTML tags like <u>, <b>, <i> - use plain text only
+- Planning Application Reference Number is: 25/6876
 
 LETTER STRUCTURE (start with the date):
 ${formattedDate}
@@ -699,7 +680,7 @@ Re: Objection to Planning Application - Greenhills Renewable Energy Development
 
 A Chara,
 
-Planning Application Reference Number: (TBC)
+Planning Application Reference Number: 25/6876
 Applicant: Orsted Onshore Ireland Midco Ltd, construction of 328.28ha Solar Farm.
 Location: Knocknagappagh, Barnaviddane, Ballyneague, Ballydaniel, Youghalpark, Ballydaheen and Cornaveigh, Co. Cork.
 
@@ -707,7 +688,7 @@ I am writing to formally object to the above planning application...
 
 [Body with grounds of objection - address each selected concern with respondent's words + facts]
 [Reference Irish planning guidelines where relevant]
-${age ? '[Personal, age-appropriate tone - what a ' + age + '-year-old would genuinely worry about]' : '[Professional tone, varied sentence structure]'}
+[Professional tone, varied sentence structure]
 [Include personal story/most important concerns if provided]
 
 [Conclusion]
@@ -956,12 +937,16 @@ Generate the complete 1200-1400 word letter now:`;
     <pre>${letterContent}</pre>
   </div>
   
-  <div class="section">
-    <h3>📝 YOUR FORM INPUTS (FOR REFERENCE):</h3>
-    <pre style="background: white; padding: 15px; border: 1px solid #ddd;">${inputsContent}</pre>
-  </div>
-  
   <div class="instructions">
+    <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+      <h4 style="margin-top: 0; color: #856404;">⚠️ IMPORTANT DISCLAIMER</h4>
+      <p style="margin-bottom: 0; color: #856404;">
+        <strong>This letter is a suggested template to assist you in creating your planning objection.</strong> 
+        It is your responsibility to review, verify, and ensure the content accurately reflects your individual 
+        concerns, feelings, and personal circumstances. Please edit as needed before submission.
+      </p>
+    </div>
+    
     <h3>📋 HOW TO SUBMIT YOUR OBJECTION:</h3>
     <ol>
       <li><strong>Open the attached Word document</strong> (.doc file)</li>
@@ -970,13 +955,14 @@ Generate the complete 1200-1400 word letter now:`;
           <li>Personalize any sections you wish</li>
           <li>Add photos, maps, or evidence images that support your concerns</li>
           <li>Adjust wording to match your voice</li>
+          <li><strong>Verify all facts and statements match your personal situation</strong></li>
         </ul>
       </li>
       <li><strong>Submit online</strong> at: <a href="https://www.corkcoco.ie">www.corkcoco.ie</a>
         <ul>
           <li>€20 submission fee required</li>
-          <li>Include planning reference: [PLANNING REF - TO BE INSERTED]</li>
-          <li><strong>Closing date for objections is Tuesday 3rd February</strong></li>
+          <li>Include planning reference: <strong>25/6876</strong></li>
+          <li><strong>Closing date for objections is Tuesday 3rd February 2026</strong></li>
         </ul>
       </li>
       <li><strong>Need help?</strong> Read Cork County Council's submission guidelines: <a href="https://www.corkcoco.ie/sites/default/files/2022-01/access-guidelines-for-making-a-submission-on-a-planning-application-pdf.pdf">View Guidelines (PDF)</a></li>
@@ -1007,8 +993,11 @@ Your personalized planning submission has been prepared based on your concerns.
 ATTACHED FILE:
 - ${letterDocFilename} (Your objection letter - Word/DOC format, ready to submit)
 
-YOUR FORM SUBMISSION:
-${inputsContent}
+⚠️ IMPORTANT DISCLAIMER:
+This letter is a suggested template to assist you in creating your planning objection.
+It is your responsibility to review, verify, and ensure the content accurately reflects 
+your individual concerns, feelings, and personal circumstances. Please edit as needed 
+before submission.
 
 HOW TO SUBMIT YOUR OBJECTION:
 
@@ -1017,11 +1006,12 @@ HOW TO SUBMIT YOUR OBJECTION:
    - Personalize any sections
    - Add photos, maps, or evidence images
    - Adjust wording to match your voice
+   - Verify all facts and statements match your personal situation
 3. Save as PDF (File → Save As → PDF)
 4. Submit online at: www.corkcoco.ie
    - €20 submission fee required
-   - Planning Reference: (TBC)
-   - Submit within 35 days of application being lodged
+   - Planning Reference: 25/6876
+   - Closing date: Tuesday 3rd February 2026
 
 NEED HELP?
 Read Cork County Council's submission guidelines:
