@@ -910,6 +910,12 @@ Generate the complete 1200-1400 word letter now:`;
         filename: letterDocFilename,
         type: 'application/msword',
         disposition: 'attachment'
+      },
+      {
+        content: Buffer.from(inputsContent).toString('base64'),
+        filename: inputsFilename,
+        type: 'text/plain',
+        disposition: 'attachment'
       }
     ];
     
@@ -940,19 +946,15 @@ Generate the complete 1200-1400 word letter now:`;
   <p>Thank you for using the Greenhills Renewable Energy Development Objection Generator created by the <strong>Inch Killeagh Rural Preservation Group</strong>.</p>
   
   <div class="attachments">
-    <h3>📎 ATTACHED FILE:</h3>
+    <h3>📎 ATTACHED FILES:</h3>
     <p><strong>${letterDocFilename}</strong> - Your objection letter (Word format - ready to submit)</p>
-    <p>The letter has also been saved to our shared Dropbox folder for committee records.</p>
+    <p><strong>${inputsFilename}</strong> - Your form inputs (text file - for your reference)</p>
+    <p>Both files have also been saved to our shared Dropbox folder for committee records.</p>
   </div>
   
   <div class="letter-box">
     <h3>📄 YOUR GENERATED OBJECTION LETTER:</h3>
     <pre>${letterContent}</pre>
-  </div>
-  
-  <div class="section">
-    <h3>📝 YOUR FORM INPUTS (FOR REFERENCE):</h3>
-    <pre style="background: white; padding: 15px; border: 1px solid #ddd;">${inputsContent}</pre>
   </div>
   
   <div class="instructions">
@@ -1008,11 +1010,9 @@ Thank you for using our planning objection service for the proposed Greenhills R
 
 Your personalized planning submission has been prepared based on your concerns.
 
-ATTACHED FILE:
+ATTACHED FILES:
 - ${letterDocFilename} (Your objection letter - Word/DOC format, ready to submit)
-
-YOUR FORM SUBMISSION:
-${inputsContent}
+- ${inputsFilename} (Your form inputs - text file, for your reference)
 
 ⚠️ IMPORTANT DISCLAIMER:
 This letter is a suggested template to assist you in creating your planning objection.
