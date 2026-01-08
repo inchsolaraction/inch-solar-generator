@@ -319,18 +319,18 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
   }
 }
 
-// Simple in-memory cache to prevent duplicate submissions within 5 minutes
-const recentSubmissions = new Map();
+// Robust duplicate prevention - tracks ALL submissions for 7 days
+const processedSubmissions = new Map();
 
-// Clean up old entries every 10 minutes
+// Clean up old entries every hour (keep for 7 days)
 setInterval(() => {
-  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-  for (const [key, timestamp] of recentSubmissions.entries()) {
-    if (timestamp < fiveMinutesAgo) {
-      recentSubmissions.delete(key);
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  for (const [key, timestamp] of processedSubmissions.entries()) {
+    if (timestamp < sevenDaysAgo) {
+      processedSubmissions.delete(key);
     }
   }
-}, 10 * 60 * 1000);
+}, 60 * 60 * 1000);
 
 // Main handler
 module.exports = async (req, res) => {
@@ -342,6 +342,25 @@ module.exports = async (req, res) => {
     console.log('Received webhook from Tally');
     
     const webhookData = req.body.data || req.body;
+    
+    // CRITICAL: Use Tally's submission ID to prevent duplicates
+    const tallySubmissionId = webhookData.submissionId || webhookData.responseId || webhookData.id;
+    
+    if (tallySubmissionId) {
+      // Check if we've already processed this exact submission
+      if (processedSubmissions.has(tallySubmissionId)) {
+        console.log('DUPLICATE DETECTED - Tally re-sent submission:', tallySubmissionId);
+        return res.status(200).json({ 
+          message: 'Duplicate submission already processed',
+          submissionId: tallySubmissionId,
+          status: 'ignored'
+        });
+      }
+      // Mark as processed immediately
+      processedSubmissions.set(tallySubmissionId, Date.now());
+      console.log('Processing new submission:', tallySubmissionId);
+    }
+    
     const fields = webhookData.fields || [];
     
     const formData = {};
@@ -357,7 +376,7 @@ module.exports = async (req, res) => {
     // Debug: Log all field keys to help identify address field
     console.log('Form field keys:', Object.keys(formData).join(', '));
     
-    // Create unique submission ID from email + timestamp (rounded to minute)
+    // Create unique submission ID from email + timestamp (rounded to minute) as backup
     let email = String(formData['Email'] || '').trim().toLowerCase();
     
     // Validate email
@@ -369,23 +388,26 @@ module.exports = async (req, res) => {
     
     const firstName = cleanText(formData['First Name'] || '');
     const lastName = cleanText(formData['Last name'] || '');
-    const submissionId = `${email}-${firstName}-${lastName}`.toLowerCase();
+    const backupSubmissionId = `${email}-${firstName}-${lastName}-${Date.now()}`.toLowerCase();
     
-    // Check if this is a duplicate submission within last 15 minutes
-    if (recentSubmissions.has(submissionId)) {
-      const lastSubmission = recentSubmissions.get(submissionId);
-      const timeSince = Date.now() - lastSubmission;
-      if (timeSince < 15 * 60 * 1000) { // 15 minutes
-        console.log('Duplicate submission detected - ignoring:', submissionId);
+    // Additional check: email-name combination within last 5 minutes (fast re-submission protection)
+    const quickCheckId = `${email}-${firstName}-${lastName}`.toLowerCase();
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    
+    for (const [key, timestamp] of processedSubmissions.entries()) {
+      if (key.startsWith(quickCheckId) && timestamp > fiveMinutesAgo) {
+        console.log('DUPLICATE DETECTED - Same person submitted within 5 minutes');
         return res.status(200).json({ 
-          message: 'Duplicate submission - already processed',
+          message: 'Duplicate submission - same person within 5 minutes',
           status: 'ignored'
         });
       }
     }
     
-    // Mark this submission as processed
-    recentSubmissions.set(submissionId, Date.now());
+    // Also track by backup ID in case Tally doesn't send submission ID
+    if (!tallySubmissionId) {
+      processedSubmissions.set(backupSubmissionId, Date.now());
+    }
     
     console.log('Processing form submission...');
     
