@@ -514,36 +514,36 @@ module.exports = async (req, res) => {
       
       let context = '\n\nSUPPORTING FACTS:\n';
       const factsMap = {
-        'Food Security': '[FACTS] Loss of agricultural land reduces local food production capacity',
-        'River Pollution': '[FACTS] Construction runoff and panel washing chemicals risk contaminating the Dissour and Bride rivers',
-        'Well contamination': '[FACTS] Groundwater contamination from solar farm chemicals threatens private wells used by local households',
-        'Flooding': '[FACTS] Storm Babet (October 2023) caused severe flooding. Development will increase surface runoff and flood risk',
-        'Mental health': '[FACTS] Visual intrusion, construction noise, and loss of rural character negatively impact mental wellbeing',
-        'Glint and glare': '[FACTS] Solar panel reflections create glare hazards for drivers and nearby residents',
-        'Location, Scale and size': '[FACTS] The proposed 500+ acre site will industrialize rural agricultural landscape',
-        'Noise & vibration': '[FACTS] Construction traffic, pile driving, and inverter noise will disrupt rural tranquility',
-        'No clear rational plan': '[FACTS] Lack of strategic planning framework for large-scale solar developments in Cork',
-        'Lack of legislation': '[FACTS] Ireland lacks comprehensive solar farm regulations compared to EU neighbors',
-        'Wildlife/Biodiversity': '[FACTS] Development threatens local wildlife habitats and biodiversity corridors',
-        'Impact on children': '[FACTS] Safety concerns with construction traffic near schools and children\'s play areas',
-        'Road Safety/Traffic during construction': '[FACTS] Narrow rural roads unsuitable for heavy construction vehicle traffic',
-        'Road infrastructure': '[FACTS] Local roads lack capacity for construction traffic; damage likely',
-        'Lack of public engagement': '[FACTS] Community concerns about inadequate consultation and information provision',
-        'Decommissioning': '[FACTS] No clear plan or financial guarantee for site restoration after 35-year lifespan',
-        'Archaeology': '[FACTS] 15 recorded monuments within 5km including ringforts, burial grounds, and holy wells',
-        'Flora and fauna (horticulture)': '[FACTS] Local flora and horticultural heritage at risk from development',
-        'Privacy': '[FACTS] Elevated panels and security infrastructure overlook neighboring properties',
-        'Visual impact': '[FACTS] Industrial-scale solar arrays will dominate rural viewscapes',
-        'Economic knock-on/loss of jobs': '[FACTS] Agricultural jobs lost, minimal long-term employment from solar operations',
-        'Battery Storage fire risk': '[FACTS] Lithium battery storage systems pose fire and toxic smoke risks',
-        'Devaluation of property': '[FACTS] Property values typically decline 10-30% near large solar installations',
-        'Loss of agricultural land': '[FACTS] Permanent loss of productive farmland for food production',
-        'Security': '[FACTS] Fencing, cameras, and security lighting create industrial appearance',
-        'Quality of electrical and mechanical components': '[FACTS] Concerns about quality standards and lifespan of imported equipment',
-        'Industrialisation': '[FACTS] Development will industrialize rural agricultural character of the area',
-        'Air traffic': '[FACTS] Solar panel glare risks for aircraft using Cork and Waterford airports',
-        'Existing Renewable applications/developments in Cork/West Waterford': '[FACTS] Cumulative impact of multiple renewable projects not assessed',
-        'Adjacent Renewable applications/development in local area': '[FACTS] Combined visual and environmental impact of nearby projects'
+        'Food Security': 'Ireland imports 80% of animal feed and food needs. Taking 800+ acres out of production reduces food security. Ireland exports 90-94% of dairy produce - vital economic contributor. 5-6 million tonnes of grains imported annually. Loss of 1,300 cows = 9.75 million litres milk lost per year.',
+        'River Pollution': 'Storm runoff during construction carries sediment and phosphorus into waterways. Panel runoff can transport herbicides, pesticides, and fertilizers. Solar panels contain lead and cadmium - risk if damaged. Tourig River (which flows through site) supplies Youghal town drinking water.',
+        'Well contamination': 'Surface runoff from 800+ acre site threatens private wells. Damaged panels can leach hazardous materials (lead, cadmium) into groundwater. Construction phase increases erosion and sediment in wells. Chemical vegetation management poses contamination risk.',
+        'Flooding': 'Site at high elevation - altering natural drainage increases downstream flood risk. Storm Babet (October 2023) caused severe local flooding. Large hard surfaces increase runoff speed and volume. Construction erosion worsens flood contamination. Site near floodplains and Tourig River waterway.',
+        'Mental health': 'Anxiety over 40-year industrialization of rural landscape. Stress from construction noise, disruption, and uncertainty. Loss of "place attachment" to familiar rural setting. Perceived loss of control over community decisions. Construction phase creates intensive temporary stress.',
+        'Glint and glare': 'Panel reflections cause temporary blindness for drivers (especially low sun - morning/evening). Aviation hazard during approach phases. Continuous glare reduces quality of life for nearby homes. Birds mistake reflective panels for water - collision risk. Studies show reduced property values from visual glare.',
+        'Location, Scale and size': '250MW farm = 1,000-1,250 acres (750-900 football pitches). Would provide 5% of Ireland\'s 2030 solar target in ONE location - hugely disproportionate. 220kV substation: 10-15m high industrial structures. Largest solar farm in Ireland, 2nd largest in Europe - no test cases for impacts.',
+        'Noise & vibration': 'Construction: Months of pile driving, heavy machinery, diggers - constant noise. Inverters: Hundreds producing constant electrical hum 24/7. Substation transformers: Continuous humming/buzzing day and night. BESS cooling fans: Large battery systems run constantly. Low-frequency hum travels far in quiet countryside - sleep disruption, stress.',
+        'No clear rational plan': 'No specific areas designated in national or county plans for utility-scale solar. Government guidelines delayed until 2027 minimum. National plan requires feasibility studies near industrial parks/brownfield sites first - not prime agricultural land. High-value landscapes like Inch Killeagh deemed "sensitive areas". Multiple agencies (DECC, SEAI) should conduct studies - not single private company.',
+        'Lack of legislation': 'Planning Act 2000 requires EIA for scale, cumulative impact, habitat assessment. No national standards for utility-scale solar (unlike homes/businesses). Cork Council plan requires protection of: natural heritage, biodiversity, cultural heritage, scenic amenity, archaeological sites. Strategic Flood Risk Assessment required for elevated sites.',
+        'Wildlife/Biodiversity': 'Desktop studies insufficient - only handful of surveyor visits noted. 2+ million sq meters of panels covering 800+ acres. TB-positive badger setts on site - relocation spreads disease. Deer population displaced by fencing - increased road hazards. Protected species: Hares, hedgehogs, pine martens, red squirrels, badgers, bats, barn owls. Tourig River SAC protects lamprey species - pollution threatens conservation area.',
+        'Impact on children': '2025 Nature study: Chronic noise harms mental health, disrupts sleep, increases stress hormones, causes brain inflammation. Children with additional needs particularly affected. American Public Health Association links noise to cardiovascular issues, cognitive/emotional disorders in children. WHO: Persistent noise disrupts sleep, raises blood pressure, increases stress - especially harmful in quiet rural areas where ambient noise is low.',
+        'Road Safety/Traffic during construction': 'Narrow rural roads built for 2 cars - impossible for HGVs up to 16.5m (54 feet). Heavy machinery, 20ft/40ft shipping containers on narrow roads. Increased deer on roads fleeing construction. Danger to children, walkers, cyclists, horse riders. Extended stop/go systems increase traffic jams. Wexford solar farm residents report "biggest vehicles ever seen".',
+        'Road infrastructure': 'Local roads modestly maintained - no indication of upgrades planned. Heavy agricultural vehicles PLUS construction HGVs creates dangerous mix. No adjacent economic zone or IDA estate justifying infrastructure. Roads not designed for years of heavy construction traffic.',
+        'Lack of public engagement': 'No public meeting despite numerous requests. Only 342 houses within 1.5km targeted - many never received correspondence. Consultation letters sent August bank holiday weekend - appointments only Tues/Fri 11am-6pm (workdays). 62 face-to-face meetings total - tiny fraction of affected community. One-to-one consultations lack transparency/accountability. Maps/website only published AFTER consultations ended. Orsted declined all requests for public meeting or media debate.',
+        'Decommissioning': 'Ireland lacks large-scale PV recycling facilities - materials exported or landfilled. Panels contain hazardous materials (lead, cadmium). Soil compaction from heavy machinery permanently damages agricultural use. 800+ acres of vegetation cleared - biodiversity loss, erosion risk. No clear financial guarantee (bond/escrow) for 40-year cleanup. Potential leaching of transformer fluids and broken panel materials into soil/water.',
+        'Archaeology': '15+ recorded monuments within 5km including: CO056-004 Lime kiln, CO056-002 Ringfort-rath, WA037-009 Earthwork, CO067-001003 Souterrain, CO056-001001 Ancient graveyard. National plan: Archaeological sites = "critical objection grounds". High heritage value - Rath Fort offers protected panoramic historic view. Development contradicts heritage protection requirements.',
+        'Flora and fauna (horticulture)': '2+ million sq meters of panels = massive habitat destruction. Construction disrupts breeding, foraging, and shelter for 12+ months. BBC study: Animals displaced during construction do not return. Fencing fragments 1000 acres - blocks wildlife corridors. Mammal access points (30cm x 30cm) too small for deer and large animals. Protected birds: Barn owl, cuckoo, swallow, yellowhammer. Protected fish in Tourig River SAC: Brown trout, sea trout, salmon, eels, lamprey species.',
+        'Privacy': 'Elevated site overlooks 342+ homes. Security cameras around entire perimeter - Carlow project cameras pointed into neighboring properties. Survey personnel caught using binoculars watching children playing - reported to Gardaí. Zero screening possible on elevated site. 40 years of surveillance infrastructure overlooking private homes and gardens.',
+        'Visual impact': '800+ acres visible from 30+ townlands including: Barnaviddane, Knocknagappagh, Ballydaniel, Ballyneague, Youghalpark, Cornaveigh, Castlemiles, and many more. Elevated site = impossible to screen. Spectacular rural views permanently lost. Beside busy Youghal-Tallow road (R634) - industrial blight on scenic route. 842m from impressive Rath Fort - tourism impact.',
+        'Economic knock-on/loss of jobs': 'Loss of 1,300 cows = 9.75 million litres milk lost annually for Dairygold processing. Supporting businesses: Vets, feed suppliers, farm equipment, transport, dairy processing - all lose revenue. Solar provides ZERO local employment after construction. No economic advantage to area. Local businesses that depend on agricultural economy will suffer.',
+        'Battery Storage fire risk': '50 containers of Lithium-ion batteries proposed. 342 households within 1.5km + 2 schools nearby. NO Irish regulations for BESS. NO insurance available in Ireland for BESS. Gases (hydrogen fluoride, carbon monoxide, hydrocarbons) are odorless, colorless - severe respiratory danger. Site on "Cronin\'s Bogs" (springs) - direct line to Tourig River (Youghal drinking water). Xerotech Clare fire (Jan 2025): 1,700 students evacuated, 5 firefighters hospitalized, months of contamination, €20-80M cleanup cost. Fire brigades let chemical fires burn - toxic smoke, evacuations ordered. Kildare & Cork councils refused BESS on health/safety grounds.',
+        'Devaluation of property': 'SEAI 2016 report outdated (based on 25-acre farms, not 800+ acres). Multiple peer-reviewed studies show 5-20% property value loss within 0.8-1.6km. Virginia Tech, Lawrence Berkeley Lab, URI, Wisconsin studies document decline. Mortgage of €400k could lose €6,000-€20,000 in value. 2023 study: 5.4% price reduction for properties 750m south of >5MW solar farm. Higher losses during construction phase. 3 houses + 1 site already for sale since announcement (unusual for area).',
+        'Loss of agricultural land': 'Prime Grade 1-2 agricultural land proposed. 6 townlands affected: Barnaviddane (125 of 250 acres lost), Knocknagappagh, Ballyneague, Ballydaniel, Youghalpark, Cornaveigh. Greenhills = 2-3% of Ireland\'s entire 8GW solar target in ONE location (hugely disproportionate). 61,000 townlands in Ireland - just 6 provide 2% of national renewable target. UK requires poorer quality land be used first - Grade 1-2 protected. France limits agricultural land solar to <10% production loss, <40% coverage. IFA: Solar should use low-grade land, not productive farmland.',
+        'Security': 'Isolated utility-scale power generation = obvious security target (road/air access). Larger geopolitical concerns (Russian interest in EU energy infrastructure). Physical threats: Sabotage, explosion. Digital threats: System hacking, management compromise. No police, emergency services, or security personnel nearby. No physical or digital security risk assessment in collateral. CCTV and high fencing inappropriate for rural setting - impacts wildlife movement. Ukraine war lesson: Centralized grid vulnerable - decentralized generation more secure.',
+        'Quality of electrical and mechanical components': 'NO legislation governing utility-scale solar quality (unlike homes/businesses). NSAI offers advice only - not enforceable. Developer has commercial interest in cost savings - may procure cheaper components. Exclusive supplier agreements limit access to quality materials. No bonding scheme to ensure quality work. No state inspection/enforcement agency. Laois/Carlow developments show this developer has poor compliance record. Solar industry recommends developments >5MW (25 acres) are "very risky" - this is 250MW (1000+ acres). 220kV substation for 1000MW transmission has no quality safeguards.',
+        'Industrialisation': 'Planning Act 2000: Land must be zoned for intended industrial use BEFORE development. Currently zoned agricultural + limited rural homes - NOT industrial. Re-zoning requires: Environmental Impact Assessment, Habitats Directive compliance, hazardous material safeguards (batteries), pollutant assessments (water), transport impact studies. 300+ homes granted planning without industrial zone warnings. Cork County Council has NOT designated this as decarbonization zone. High elevation makes site unsuitable for industrial use (should be flat). No indication of economic zone development or road upgrades.',
+        'Air traffic': 'Irish Coast Guard flight path crosses site several times weekly. Solar glare causes temporary vision impairment for pilots (especially low sun). Large installations cause radar reflections - interfere with navigation/tracking. Reflections during critical approach phases create safety hazard.',
+        'Existing Renewable applications/developments in Cork/West Waterford': 'Cork already has 3,553 acres established/approved for solar. Additional 941 acres in planning (excluding this project). Government target: 26,000 acres by 2030 ÷ 26 counties = Cork taking 3x fair share already. Nearby projects: Lyranacarriga wind (17 turbines, 1,811 acres, 1.4km away, 46k homes), Inis Ealga marine (70 turbines, 6.3km away, 860k homes), Lysaghtstown solar (378 acres, 22km away, 30k homes). These 3 projects alone support 50% of Irish homes! East Cork has MORE than taken fair share of burden.',
+        'Adjacent Renewable applications/development in local area': 'Cumulative visual and environmental impact NOT assessed. Concentration of massive renewable projects in small area. National plan advises AGAINST fragmenting agricultural lands. Solar industry recommends spreading projects equitably - NOT concentrating. Combined impact on wildlife corridors, flooding, traffic, visual amenity not studied. Council has not signposted this concentration as concern.'
       };
       
       selectedLabels.forEach(label => {
@@ -659,7 +659,20 @@ INSTRUCTIONS:
 - EXACTLY 1200-1400 words total (strict requirement)
 - Formal Cork County Council format
 - Use THIS formatting style for the concerns section: ${randomFormat}
-- Vary the introduction and conclusion wording - make it unique
+- CRITICAL UNIQUENESS: Every letter must be unique - even if users only select concerns without adding details:
+  * Vary introduction and conclusion significantly each time
+  * Use different sentence structures and phrasing
+  * Select different facts/examples from the supporting facts
+  * Vary the order and emphasis of concerns
+  * Use synonyms and alternative expressions
+  * Change transitional phrases and connecting language
+  * Make letters sound naturally different from each other
+- USER INPUT TAKES PRECEDENCE: The respondent's own words, concerns, and personal details are most important
+  * Build the letter primarily around what THEY wrote in the form
+  * Use supporting facts to augment and strengthen THEIR concerns (not replace them)
+  * Keep their voice and perspective central
+  * If they provided detailed concerns, feature those prominently
+  * If they only ticked boxes, use facts to build comprehensive argument while varying approach
 - Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
 ${distance && !distance.includes('5km+') ? `- EMPHASIZE PROXIMITY: The respondent lives ${distance} from the development - this is VERY close. Stress immediate visual, noise, and environmental impacts on their daily life and property.` : ''}
 - DO NOT include the sender's address - we will add that separately
@@ -937,6 +950,11 @@ Generate the complete 1200-1400 word letter now:`;
     <pre>${letterContent}</pre>
   </div>
   
+  <div class="section">
+    <h3>📝 YOUR FORM INPUTS (FOR REFERENCE):</h3>
+    <pre style="background: white; padding: 15px; border: 1px solid #ddd;">${inputsContent}</pre>
+  </div>
+  
   <div class="instructions">
     <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
       <h4 style="margin-top: 0; color: #856404;">⚠️ IMPORTANT DISCLAIMER</h4>
@@ -992,6 +1010,9 @@ Your personalized planning submission has been prepared based on your concerns.
 
 ATTACHED FILE:
 - ${letterDocFilename} (Your objection letter - Word/DOC format, ready to submit)
+
+YOUR FORM SUBMISSION:
+${inputsContent}
 
 ⚠️ IMPORTANT DISCLAIMER:
 This letter is a suggested template to assist you in creating your planning objection.
