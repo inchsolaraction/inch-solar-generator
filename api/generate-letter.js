@@ -217,16 +217,67 @@ function createLetterTextFile(letterText, firstName, lastName) {
   return letterText;
 }
 
-// Upload to Dropbox
-async function uploadToDropbox(content, fileName, subfolder = '') {
-  const dropboxToken = process.env.DROPBOX_ACCESS_TOKEN;
+// Dropbox token management - uses refresh token for long-term access
+let cachedAccessToken = null;
+let tokenExpiry = 0;
+
+async function getDropboxAccessToken() {
+  // If we have a valid cached token, use it
+  if (cachedAccessToken && Date.now() < tokenExpiry) {
+    return cachedAccessToken;
+  }
   
-  if (!dropboxToken) {
-    console.log('DROPBOX_ACCESS_TOKEN not configured');
-    return { success: false, message: 'Dropbox not configured' };
+  const refreshToken = process.env.DROPBOX_REFRESH_TOKEN;
+  const appKey = process.env.DROPBOX_APP_KEY;
+  const appSecret = process.env.DROPBOX_APP_SECRET;
+  
+  if (!refreshToken || !appKey || !appSecret) {
+    console.error('Missing Dropbox credentials. Need: DROPBOX_REFRESH_TOKEN, DROPBOX_APP_KEY, DROPBOX_APP_SECRET');
+    throw new Error('Dropbox not configured');
   }
   
   try {
+    console.log('Refreshing Dropbox access token...');
+    
+    // Build Basic Auth header
+    const credentials = Buffer.from(`${appKey}:${appSecret}`).toString('base64');
+    
+    // Request new access token
+    const tokenResponse = await makeRequest(
+      {
+        hostname: 'api.dropbox.com',
+        path: '/oauth2/token',
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      },
+      `grant_type=refresh_token&refresh_token=${refreshToken}`
+    );
+    
+    if (tokenResponse.access_token) {
+      cachedAccessToken = tokenResponse.access_token;
+      // Token expires in 4 hours, cache for 3.5 hours to be safe
+      tokenExpiry = Date.now() + (3.5 * 60 * 60 * 1000);
+      console.log('Dropbox access token refreshed successfully');
+      return cachedAccessToken;
+    } else {
+      throw new Error('No access token in response');
+    }
+    
+  } catch (error) {
+    console.error('Failed to refresh Dropbox token:', error.message);
+    throw error;
+  }
+}
+
+// Upload to Dropbox
+async function uploadToDropbox(content, fileName, subfolder = '') {
+  try {
+    // Get valid access token (refreshes if needed)
+    const accessToken = await getDropboxAccessToken();
+    
     const buffer = Buffer.from(content, 'utf8');
     
     // Build path with subfolder if provided
@@ -239,7 +290,7 @@ async function uploadToDropbox(content, fileName, subfolder = '') {
         path: '/2/files/upload',
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${dropboxToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/octet-stream',
           'Dropbox-API-Arg': JSON.stringify({
             path: fullPath,
