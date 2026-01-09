@@ -1,7 +1,8 @@
-// Inch Solar Development - Objection Letter Generator v3.0 FINAL
-// Complete system with SendGrid, Dropbox, formatted text files, and all Tally fields
+// Inch Solar Development - Objection Letter Generator V22 with Redis Duplicate Tracking
+// Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
 
 const https = require('https');
+const { kv } = require('@vercel/kv');
 
 // Committee Research - Updated for all concern categories
 const COMMITTEE_RESEARCH = {
@@ -370,19 +371,6 @@ async function sendEmailViaSendGrid(to, subject, htmlBody, textBody, attachments
   }
 }
 
-// Robust duplicate prevention - tracks ALL submissions for 7 days
-const processedSubmissions = new Map();
-
-// Clean up old entries every hour (keep for 7 days)
-setInterval(() => {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  for (const [key, timestamp] of processedSubmissions.entries()) {
-    if (timestamp < sevenDaysAgo) {
-      processedSubmissions.delete(key);
-    }
-  }
-}, 60 * 60 * 1000);
-
 // Main handler
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -394,21 +382,27 @@ module.exports = async (req, res) => {
     
     const webhookData = req.body.data || req.body;
     
-    // CRITICAL: Use Tally's submission ID to prevent duplicates
+    // CRITICAL: Use Tally's submission ID to prevent duplicates with PERSISTENT Redis storage
     const tallySubmissionId = webhookData.submissionId || webhookData.responseId || webhookData.id;
     
     if (tallySubmissionId) {
-      // Check if we've already processed this exact submission
-      if (processedSubmissions.has(tallySubmissionId)) {
+      // Check Redis if we've already processed this exact submission
+      const redisKey = `submission:${tallySubmissionId}`;
+      const alreadyProcessed = await kv.get(redisKey);
+      
+      if (alreadyProcessed) {
         console.log('DUPLICATE DETECTED - Tally re-sent submission:', tallySubmissionId);
+        console.log('Original processing time:', new Date(alreadyProcessed).toISOString());
         return res.status(200).json({ 
           message: 'Duplicate submission already processed',
           submissionId: tallySubmissionId,
+          originalProcessedAt: alreadyProcessed,
           status: 'ignored'
         });
       }
-      // Mark as processed immediately
-      processedSubmissions.set(tallySubmissionId, Date.now());
+      
+      // Mark as processed immediately in Redis (expires after 7 days)
+      await kv.set(redisKey, Date.now(), { ex: 604800 }); // 604800 seconds = 7 days
       console.log('Processing new submission:', tallySubmissionId);
     }
     
@@ -427,7 +421,7 @@ module.exports = async (req, res) => {
     // Debug: Log all field keys to help identify address field
     console.log('Form field keys:', Object.keys(formData).join(', '));
     
-    // Create unique submission ID from email + timestamp (rounded to minute) as backup
+    // Extract email and name for backup tracking
     let email = String(formData['Email'] || '').trim().toLowerCase();
     
     // Validate email
@@ -439,25 +433,33 @@ module.exports = async (req, res) => {
     
     const firstName = cleanText(formData['First Name'] || '');
     const lastName = cleanText(formData['Last name'] || '');
-    const backupSubmissionId = `${email}-${firstName}-${lastName}-${Date.now()}`.toLowerCase();
     
     // Additional check: email-name combination within last 5 minutes (fast re-submission protection)
-    const quickCheckId = `${email}-${firstName}-${lastName}`.toLowerCase();
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    // This catches accidental double-clicks even if Tally doesn't send submission ID
+    const quickCheckKey = `quick:${email}-${firstName}-${lastName}`;
+    const recentSubmission = await kv.get(quickCheckKey);
     
-    for (const [key, timestamp] of processedSubmissions.entries()) {
-      if (key.startsWith(quickCheckId) && timestamp > fiveMinutesAgo) {
+    if (recentSubmission) {
+      const timeSince = Date.now() - recentSubmission;
+      if (timeSince < 5 * 60 * 1000) { // 5 minutes
         console.log('DUPLICATE DETECTED - Same person submitted within 5 minutes');
+        console.log('Time since last submission:', Math.round(timeSince / 1000), 'seconds');
         return res.status(200).json({ 
           message: 'Duplicate submission - same person within 5 minutes',
+          timeSinceLastSubmission: timeSince,
           status: 'ignored'
         });
       }
     }
     
-    // Also track by backup ID in case Tally doesn't send submission ID
+    // Track this email-name combo (expires after 10 minutes)
+    await kv.set(quickCheckKey, Date.now(), { ex: 600 }); // 600 seconds = 10 minutes
+    
+    // Also store by backup ID if Tally didn't send submission ID
     if (!tallySubmissionId) {
-      processedSubmissions.set(backupSubmissionId, Date.now());
+      const backupKey = `backup:${email}-${firstName}-${lastName}-${Date.now()}`;
+      await kv.set(backupKey, Date.now(), { ex: 604800 }); // 7 days
+      console.log('No Tally submission ID - using backup tracking');
     }
     
     console.log('Processing form submission...');
