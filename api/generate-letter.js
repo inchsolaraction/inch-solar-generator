@@ -1,8 +1,51 @@
-// Inch Solar Development - Objection Letter Generator V22 with Redis Duplicate Tracking
+// Inch Solar Development - Objection Letter Generator V22b with Redis Duplicate Tracking
 // Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
+// Uses native redis client instead of @vercel/kv
 
 const https = require('https');
-const { kv } = require('@vercel/kv');
+const redis = require('redis');
+
+// Redis client setup - uses REDIS_URL environment variable
+let redisClient = null;
+let isRedisConnected = false;
+
+async function getRedisClient() {
+  if (!redisClient) {
+    const redisUrl = process.env.REDIS_URL;
+    
+    if (!redisUrl) {
+      console.error('REDIS_URL environment variable not set');
+      throw new Error('Redis not configured');
+    }
+    
+    redisClient = redis.createClient({
+      url: redisUrl,
+      socket: {
+        reconnectStrategy: (retries) => {
+          if (retries > 3) {
+            console.error('Redis reconnection failed after 3 attempts');
+            return new Error('Redis reconnection limit reached');
+          }
+          return Math.min(retries * 100, 3000);
+        }
+      }
+    });
+    
+    redisClient.on('error', (err) => {
+      console.error('Redis Client Error:', err);
+      isRedisConnected = false;
+    });
+    
+    redisClient.on('connect', () => {
+      console.log('Redis connected successfully');
+      isRedisConnected = true;
+    });
+    
+    await redisClient.connect();
+  }
+  
+  return redisClient;
+}
 
 // Committee Research - Updated for all concern categories
 const COMMITTEE_RESEARCH = {
@@ -377,8 +420,13 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let client = null;
+
   try {
     console.log('Received webhook from Tally');
+    
+    // Connect to Redis
+    client = await getRedisClient();
     
     const webhookData = req.body.data || req.body;
     
@@ -388,21 +436,21 @@ module.exports = async (req, res) => {
     if (tallySubmissionId) {
       // Check Redis if we've already processed this exact submission
       const redisKey = `submission:${tallySubmissionId}`;
-      const alreadyProcessed = await kv.get(redisKey);
+      const alreadyProcessed = await client.get(redisKey);
       
       if (alreadyProcessed) {
         console.log('DUPLICATE DETECTED - Tally re-sent submission:', tallySubmissionId);
-        console.log('Original processing time:', new Date(alreadyProcessed).toISOString());
+        console.log('Original processing time:', new Date(parseInt(alreadyProcessed)).toISOString());
         return res.status(200).json({ 
           message: 'Duplicate submission already processed',
           submissionId: tallySubmissionId,
-          originalProcessedAt: alreadyProcessed,
+          originalProcessedAt: parseInt(alreadyProcessed),
           status: 'ignored'
         });
       }
       
       // Mark as processed immediately in Redis (expires after 7 days)
-      await kv.set(redisKey, Date.now(), { ex: 604800 }); // 604800 seconds = 7 days
+      await client.set(redisKey, Date.now().toString(), { EX: 604800 }); // 604800 seconds = 7 days
       console.log('Processing new submission:', tallySubmissionId);
     }
     
@@ -437,10 +485,10 @@ module.exports = async (req, res) => {
     // Additional check: email-name combination within last 5 minutes (fast re-submission protection)
     // This catches accidental double-clicks even if Tally doesn't send submission ID
     const quickCheckKey = `quick:${email}-${firstName}-${lastName}`;
-    const recentSubmission = await kv.get(quickCheckKey);
+    const recentSubmission = await client.get(quickCheckKey);
     
     if (recentSubmission) {
-      const timeSince = Date.now() - recentSubmission;
+      const timeSince = Date.now() - parseInt(recentSubmission);
       if (timeSince < 5 * 60 * 1000) { // 5 minutes
         console.log('DUPLICATE DETECTED - Same person submitted within 5 minutes');
         console.log('Time since last submission:', Math.round(timeSince / 1000), 'seconds');
@@ -453,12 +501,12 @@ module.exports = async (req, res) => {
     }
     
     // Track this email-name combo (expires after 10 minutes)
-    await kv.set(quickCheckKey, Date.now(), { ex: 600 }); // 600 seconds = 10 minutes
+    await client.set(quickCheckKey, Date.now().toString(), { EX: 600 }); // 600 seconds = 10 minutes
     
     // Also store by backup ID if Tally didn't send submission ID
     if (!tallySubmissionId) {
       const backupKey = `backup:${email}-${firstName}-${lastName}-${Date.now()}`;
-      await kv.set(backupKey, Date.now(), { ex: 604800 }); // 7 days
+      await client.set(backupKey, Date.now().toString(), { EX: 604800 }); // 7 days
       console.log('No Tally submission ID - using backup tracking');
     }
     
