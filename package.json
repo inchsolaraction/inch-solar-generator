@@ -1,16 +1,12 @@
 {
-  "name": "inch-solar-objection-generator",
-  "version": "1.0.0",
-  "description": "Serverless function to generate personalized planning objection letters",
+  "name": "inch-solar-generator",
+  "version": "22.0.0",
+  "description": "Inch Solar Objection Letter Generator with Redis Duplicate Prevention",
   "main": "api/generate-letter.js",
   "dependencies": {
-    "docx": "^8.5.0",
-    "dropbox": "^10.34.0"
+    "@vercel/kv": "^1.0.1"
   },
-  "scripts": {
-    "test": "echo \"No tests yet\""
-  },
-  "keywords": ["planning", "objection", "claude", "ai"],
-  "author": "Inch Killeagh Rural Preservation Group",
-  "license": "MIT"
+  "engines": {
+    "node": ">=18.x"
+  }
 }
