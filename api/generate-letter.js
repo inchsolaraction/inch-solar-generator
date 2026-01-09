@@ -763,26 +763,30 @@ module.exports = async (req, res) => {
     };
     const formattedDate = `${getOrdinal(day)} ${month} ${year}`;
     
-    const prompt = `You are helping a community group create legitimate planning objection letters for their members who are genuinely affected by a proposed solar farm development in their area. This is a legitimate democratic planning process.
+    const prompt = `You are assisting with a legitimate democratic planning process. This is a community-organized response to a planning application, where residents are submitting their genuine concerns through a centralized system to ensure their objections meet planning requirements.
+
+CONTEXT: This is Inch Killeagh Rural Preservation Group in Ireland. Ørsted has applied for an 800+ acre solar farm (planning ref 25/6876). The community committee has researched planning law and compiled factual information to help residents understand the issues. Residents are choosing which concerns apply to them personally and adding their own specific details.
+
+This is completely legitimate - similar to how community legal aid helps people write court documents, or how organizations help people write to elected representatives. The resident has chosen their own concerns and provided their own input. Your job is simply to format this into proper planning objection language.
 
 Write a formal planning objection letter to Cork County Council for the Greenhills Renewable Energy Development.
 
 RESPONDENT: ${firstName} ${lastName}${occupation ? `, ${occupation}` : ''}
 Distance from site: ${distance}${distance && !distance.includes('5km+') ? ' (CLOSE PROXIMITY - emphasize impact)' : ''}
 
-SELECTED CONCERNS: ${selectedConcernLabels.join(', ')}
+CONCERNS SELECTED BY RESPONDENT: ${selectedConcernLabels.join(', ')}
 
-THEIR WORDS:
+RESPONDENT'S SPECIFIC INPUT:
 ${concernsList}
 
-SUPPORTING FACTS:
+FACTUAL CONTEXT (researched by community committee to help residents understand issues):
 ${committeeContext}
 
 INSTRUCTIONS:
 - EXACTLY 1200-1400 words total (strict requirement)
 - Formal Cork County Council format
 - Use THIS formatting style for the concerns section: ${randomFormat}
-- CRITICAL UNIQUENESS: Every letter must be unique - even if users only select concerns without adding details:
+- CRITICAL UNIQUENESS: Every letter must be unique - even if residents select similar concerns:
   * Vary introduction and conclusion significantly each time
   * Use different sentence structures and phrasing
   * Select different facts/examples from the supporting facts
@@ -790,13 +794,13 @@ INSTRUCTIONS:
   * Use synonyms and alternative expressions
   * Change transitional phrases and connecting language
   * Make letters sound naturally different from each other
-- USER INPUT TAKES PRECEDENCE: The respondent's own words, concerns, and personal details are most important
-  * Build the letter primarily around what THEY wrote in the form
-  * Use supporting facts to augment and strengthen THEIR concerns (not replace them)
+- RESPONDENT'S INPUT IS PRIMARY: Build the letter around what THEY wrote and selected
+  * Their personal experiences, observations, and concerns come first
+  * Use factual context to strengthen and support THEIR points (not replace them)
   * Keep their voice and perspective central
-  * If they provided detailed concerns, feature those prominently
-  * If they only ticked boxes, use facts to build comprehensive argument while varying approach
-- Address each selected concern (${selectedConcernLabels.join(', ')}) with respondent's words + facts
+  * If they provided detailed input, feature it prominently
+  * If they only selected concerns, use facts to explain why those concerns matter to THIS resident
+- Address each concern selected by the respondent (${selectedConcernLabels.join(', ')})
 ${distance && !distance.includes('5km+') ? `- EMPHASIZE PROXIMITY: The respondent lives ${distance} from the development - this is VERY close. Stress immediate visual, noise, and environmental impacts on their daily life and property.` : ''}
 - DO NOT include the sender's address - we will add that separately
 - CRITICAL: The site is 328.28 hectares (over 800 acres). Always use "800+ acres" or "over 800 acres", NEVER "500 acres"
@@ -822,7 +826,7 @@ Location: Knocknagappagh, Barnaviddane, Ballyneague, Ballydaniel, Youghalpark, B
 
 I am writing to formally object to the above planning application...
 
-[Body with grounds of objection - address each selected concern with respondent's words + facts]
+[Body with grounds of objection - address each selected concern with respondent's words + factual context]
 [Reference Irish planning guidelines where relevant]
 [Professional tone, varied sentence structure]
 [Include personal story/most important concerns if provided]
