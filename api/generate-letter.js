@@ -1,4 +1,5 @@
-// Inch Solar Development - Objection Letter Generator V22b with Redis Duplicate Tracking
+// Inch Solar Development - Objection Letter Generator V25
+// Fixed concern extraction after Tally form field changes (tip text added)
 // Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
 // Uses native redis client instead of @vercel/kv
 
@@ -606,17 +607,26 @@ module.exports = async (req, res) => {
     
     const occupation = cleanText(formData['What do you work at?'] || '');
     
-    // Parse selected concerns from UUID string or array
-    const concernsRaw = formData['What are your main concerns with the Solar Development ?\n'] || formData['What are your main concerns with the Solar Development ?'] || '';
-    let selectedConcernUUIDs = [];
+    // Parse selected concerns from checkbox fields
+    // Tally sends each checked box as a separate field with UUID in the key
+    // Format: question_eREaMx_[UUID] with value being the label
+    let selectedConcernLabels = [];
     
-    if (Array.isArray(concernsRaw)) {
-      selectedConcernUUIDs = concernsRaw;
-    } else if (typeof concernsRaw === 'string' && concernsRaw) {
-      selectedConcernUUIDs = concernsRaw.split(',').map(uuid => uuid.trim()).filter(uuid => uuid);
+    // Look for all fields that match the checkbox pattern
+    const checkboxPattern = /question_eREaMx_([a-f0-9-]+)/;
+    
+    for (const [key, value] of Object.entries(formData)) {
+      if (checkboxPattern.test(key) && value) {
+        // Extract the concern label from the value
+        // Value format: "What are your main concerns... (Food Security)"
+        const match = value.match(/\(([^)]+)\)$/);
+        if (match && match[1]) {
+          selectedConcernLabels.push(match[1]);
+        }
+      }
     }
     
-    const selectedConcernLabels = selectedConcernUUIDs.map(uuid => CONCERN_UUID_MAP[uuid]).filter(label => label);
+    console.log('Selected concerns:', selectedConcernLabels.join(', '));
     
     // Dynamic word count based on number of concerns
     // Base: 1200-1400 for 5 or fewer concerns
