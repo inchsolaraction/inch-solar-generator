@@ -608,28 +608,60 @@ module.exports = async (req, res) => {
     const occupation = cleanText(formData['What do you work at?'] || '');
     
     // Parse selected concerns from checkbox fields
-    // Tally sends each checked box as a separate field with UUID in the key
-    // Format: question_eREaMx_[UUID] with value being the label
+    // Tally sends checkboxes in various ways - try all methods
     let selectedConcernLabels = [];
     
-    // Look for all fields that match the checkbox pattern
+    // Method 1: Look for question_eREaMx pattern (new format with tip text)
     const checkboxPattern = /question_eREaMx_([a-f0-9-]+)/;
     
     for (const [key, value] of Object.entries(formData)) {
       if (checkboxPattern.test(key) && value) {
-        // Convert value to string in case it's an array or object
-        const valueStr = Array.isArray(value) ? value[0] : String(value);
+        // Convert value to string
+        const valueStr = Array.isArray(value) ? value.join(',') : String(value);
         
-        // Extract the concern label from the value
-        // Value format: "What are your main concerns... (Food Security)"
-        const match = valueStr.match(/\(([^)]+)\)$/);
+        // Extract the concern label from parentheses at the end: "(Food Security)"
+        const match = valueStr.match(/\(([^)]+)\)\s*$/);
         if (match && match[1]) {
-          selectedConcernLabels.push(match[1]);
+          const label = match[1].trim();
+          if (!selectedConcernLabels.includes(label)) {
+            selectedConcernLabels.push(label);
+          }
         }
       }
     }
     
-    console.log('Selected concerns:', selectedConcernLabels.join(', '));
+    // Method 2: If no concerns found, try the old format
+    if (selectedConcernLabels.length === 0) {
+      const concernsRaw = formData['What are your main concerns with the Solar Development ?\n'] || 
+                          formData['What are your main concerns with the Solar Development ?'] || '';
+      
+      if (Array.isArray(concernsRaw)) {
+        concernsRaw.forEach(uuid => {
+          const label = CONCERN_UUID_MAP[uuid];
+          if (label && !selectedConcernLabels.includes(label)) {
+            selectedConcernLabels.push(label);
+          }
+        });
+      } else if (typeof concernsRaw === 'string' && concernsRaw) {
+        const uuids = concernsRaw.split(',').map(uuid => uuid.trim()).filter(uuid => uuid);
+        uuids.forEach(uuid => {
+          const label = CONCERN_UUID_MAP[uuid];
+          if (label && !selectedConcernLabels.includes(label)) {
+            selectedConcernLabels.push(label);
+          }
+        });
+      }
+    }
+    
+    console.log('Selected concerns:', selectedConcernLabels.length > 0 ? selectedConcernLabels.join(', ') : 'NONE FOUND');
+    console.log('Total form fields:', Object.keys(formData).length);
+    
+    // Debug: Log all question_eREaMx fields to see what we're getting
+    const debugCheckboxFields = Object.keys(formData).filter(k => k.includes('question_eREaMx'));
+    if (debugCheckboxFields.length > 0) {
+      console.log('Checkbox fields found:', debugCheckboxFields.length);
+      console.log('First checkbox sample:', debugCheckboxFields[0], '=', formData[debugCheckboxFields[0]]);
+    }
     
     // Dynamic word count based on number of concerns
     // Base: 1200-1400 for 5 or fewer concerns
