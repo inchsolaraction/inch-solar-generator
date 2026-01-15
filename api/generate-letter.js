@@ -1,5 +1,6 @@
-// Inch Solar Development - Objection Letter Generator V25
-// Fixed concern extraction after Tally form field changes (tip text added)
+// Inch Solar Development - Objection Letter Generator V26
+// Fixed letter truncation and character encoding in inputs file
+// Fixed concern extraction after Tally form field changes
 // Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
 // Uses native redis client instead of @vercel/kv
 
@@ -245,7 +246,7 @@ function createInputsTextFile(formData, firstName, lastName, selectedConcernLabe
     if (concernsWithoutDetails.length > 0) {
       content += `\nConcerns selected (no additional details provided):\n`;
       concernsWithoutDetails.forEach(label => {
-        content += `• ${label}\n`;
+        content += `- ${label}\n`;  // Use simple dash instead of bullet to avoid encoding issues
       });
       content += `\n`;
     }
@@ -900,7 +901,7 @@ Begin the letter now:`;
       },
       JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 2000, // ~1500 words target
+        max_tokens: 4096, // Increased to handle up to ~3000 word letters without truncation
         messages: [{ role: 'user', content: prompt }]
       })
     );
