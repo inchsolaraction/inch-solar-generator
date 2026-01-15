@@ -617,9 +617,12 @@ module.exports = async (req, res) => {
     
     for (const [key, value] of Object.entries(formData)) {
       if (checkboxPattern.test(key) && value) {
+        // Convert value to string in case it's an array or object
+        const valueStr = Array.isArray(value) ? value[0] : String(value);
+        
         // Extract the concern label from the value
         // Value format: "What are your main concerns... (Food Security)"
-        const match = value.match(/\(([^)]+)\)$/);
+        const match = valueStr.match(/\(([^)]+)\)$/);
         if (match && match[1]) {
           selectedConcernLabels.push(match[1]);
         }
