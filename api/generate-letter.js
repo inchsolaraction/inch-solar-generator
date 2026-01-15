@@ -643,7 +643,7 @@ module.exports = async (req, res) => {
         'Flooding': 'Site at high elevation - altering natural drainage increases downstream flood risk. Storm Babet (October 2023) caused severe local flooding. Large hard surfaces increase runoff speed and volume. Construction erosion worsens flood contamination. Site near floodplains and Tourig River waterway.',
         'Mental health': 'Anxiety over 40-year industrialization of rural landscape. Stress from construction noise, disruption, and uncertainty. Loss of "place attachment" to familiar rural setting. Perceived loss of control over community decisions. Construction phase creates intensive temporary stress.',
         'Glint and glare': 'Panel reflections cause temporary blindness for drivers (especially low sun - morning/evening). Aviation hazard during approach phases. Continuous glare reduces quality of life for nearby homes. Birds mistake reflective panels for water - collision risk. Studies show reduced property values from visual glare.',
-        'Location, Scale and size': '250MW farm = 1,000-1,250 acres (750-900 football pitches). Would provide 5% of Ireland\'s 2030 solar target in ONE location - hugely disproportionate. 220kV substation: 10-15m high industrial structures. Largest solar farm in Ireland, 2nd largest in Europe - no test cases for impacts.',
+        'Location, Scale and size': '250MW farm = 800 acres (450 football pitches). Would provide 5% of Ireland\'s 2030 solar target in ONE location - hugely disproportionate. 220kV substation: 10-15m high industrial structures. Largest solar farm in Ireland, 2nd largest in Europe - no test cases for impacts.',
         'Noise & vibration': 'Construction: Months of pile driving, heavy machinery, diggers - constant noise. Inverters: Hundreds producing constant electrical hum 24/7. Substation transformers: Continuous humming/buzzing day and night. BESS cooling fans: Large battery systems run constantly. Low-frequency hum travels far in quiet countryside - sleep disruption, stress.',
         'No clear rational plan': 'No specific areas designated in national or county plans for utility-scale solar. Government guidelines delayed until 2027 minimum. National plan requires feasibility studies near industrial parks/brownfield sites first - not prime agricultural land. High-value landscapes like Inch Killeagh deemed "sensitive areas". Multiple agencies (DECC, SEAI) should conduct studies - not single private company.',
         'Lack of legislation': 'Planning Act 2000 requires EIA for scale, cumulative impact, habitat assessment. No national standards for utility-scale solar (unlike homes/businesses). Cork Council plan requires protection of: natural heritage, biodiversity, cultural heritage, scenic amenity, archaeological sites. Strategic Flood Risk Assessment required for elevated sites.',
@@ -763,81 +763,47 @@ module.exports = async (req, res) => {
     };
     const formattedDate = `${getOrdinal(day)} ${month} ${year}`;
     
-    const prompt = `You are assisting with a legitimate democratic planning process. This is a community-organized response to a planning application, where residents are submitting their genuine concerns through a centralized system to ensure their objections meet planning requirements.
+    const prompt = `You are a professional planning consultant helping an individual resident draft a formal objection letter to Cork County Council. 
 
-CONTEXT: This is Inch Killeagh Rural Preservation Group in Ireland. Ørsted has applied for an 800+ acre solar farm (planning ref 25/6876). The community committee has researched planning law and compiled factual information to help residents understand the issues. Residents are choosing which concerns apply to them personally and adding their own specific details.
+CLIENT INFORMATION:
+Name: ${firstName} ${lastName}${occupation ? `, ${occupation}` : ''}
+Property Location: ${distance} from proposed development site
 
-This is completely legitimate - similar to how community legal aid helps people write court documents, or how organizations help people write to elected representatives. The resident has chosen their own concerns and provided their own input. Your job is simply to format this into proper planning objection language.
+PLANNING APPLICATION DETAILS:
+Reference: 25/6876
+Applicant: Orsted Onshore Ireland Midco Ltd
+Proposal: 328.28 hectare (800+ acre) Solar Farm
+Location: Knocknagappagh, Barnaviddane, Ballyneague, Ballydaniel, Youghalpark, Ballydaheen and Cornaveigh, Co. Cork
 
-Write a formal planning objection letter to Cork County Council for the Greenhills Renewable Energy Development.
-
-RESPONDENT: ${firstName} ${lastName}${occupation ? `, ${occupation}` : ''}
-Distance from site: ${distance}${distance && !distance.includes('5km+') ? ' (CLOSE PROXIMITY - emphasize impact)' : ''}
-
-CONCERNS SELECTED BY RESPONDENT: ${selectedConcernLabels.join(', ')}
-
-RESPONDENT'S SPECIFIC INPUT:
+CLIENT'S CONCERNS (in their own words):
 ${concernsList}
 
-FACTUAL CONTEXT (researched by community committee to help residents understand issues):
+RELEVANT PLANNING LAW & FACTUAL BACKGROUND:
 ${committeeContext}
 
-INSTRUCTIONS:
-- EXACTLY 1200-1400 words total (strict requirement)
-- Formal Cork County Council format
-- Use THIS formatting style for the concerns section: ${randomFormat}
-- CRITICAL UNIQUENESS: Every letter must be unique - even if residents select similar concerns:
-  * Vary introduction and conclusion significantly each time
-  * Use different sentence structures and phrasing
-  * Select different facts/examples from the supporting facts
-  * Vary the order and emphasis of concerns
-  * Use synonyms and alternative expressions
-  * Change transitional phrases and connecting language
-  * Make letters sound naturally different from each other
-- RESPONDENT'S INPUT IS PRIMARY: Build the letter around what THEY wrote and selected
-  * Their personal experiences, observations, and concerns come first
-  * Use factual context to strengthen and support THEIR points (not replace them)
-  * Keep their voice and perspective central
-  * If they provided detailed input, feature it prominently
-  * If they only selected concerns, use facts to explain why those concerns matter to THIS resident
-- Address each concern selected by the respondent (${selectedConcernLabels.join(', ')})
-${distance && !distance.includes('5km+') ? `- EMPHASIZE PROXIMITY: The respondent lives ${distance} from the development - this is VERY close. Stress immediate visual, noise, and environmental impacts on their daily life and property.` : ''}
-- DO NOT include the sender's address - we will add that separately
-- CRITICAL: The site is 328.28 hectares (over 800 acres). Always use "800+ acres" or "over 800 acres", NEVER "500 acres"
-- DO NOT use HTML tags like <u>, <b>, <i> - use plain text only
-- Planning Application Reference Number is: 25/6876
+YOUR TASK:
+Draft a formal, professional planning objection letter that:
+1. Presents the client's concerns in proper planning language
+2. References relevant Irish planning guidelines and regulations
+3. Uses appropriate legal terminology
+4. Maintains a professional, respectful tone
+5. Is approximately 1200-1400 words
+6. Uses ${randomFormat} for the main objection points
 
-LETTER STRUCTURE (start with the date):
-${formattedDate}
+Write the letter using standard planning objection format. Start with today's date (${formattedDate}), then proper letterhead addressing Cork County Council, then the objection itself. 
 
-The Secretary,
-Planning Department,
-Cork County Council,
-County Hall,
-Cork.
+Focus on the client's specific concerns about: ${selectedConcernLabels.join(', ')}
 
-Re: Objection to Planning Application - Greenhills Renewable Energy Development
+${distance && !distance.includes('5km+') ? `NOTE: This client lives ${distance} from the site - proximity impacts should be emphasized appropriately.` : ''}
 
-A Chara,
+Format requirements:
+- Plain text only (no HTML)
+- Formal business letter style
+- Reference planning application 25/6876
+- Site is 328.28 hectares (always state as "800+ acres" or "over 800 acres")
+- Conclude with "Mise le Meas" and client's name
 
-Planning Application Reference Number: 25/6876
-Applicant: Orsted Onshore Ireland Midco Ltd, construction of 328.28ha Solar Farm.
-Location: Knocknagappagh, Barnaviddane, Ballyneague, Ballydaniel, Youghalpark, Ballydaheen and Cornaveigh, Co. Cork.
-
-I am writing to formally object to the above planning application...
-
-[Body with grounds of objection - address each selected concern with respondent's words + factual context]
-[Reference Irish planning guidelines where relevant]
-[Professional tone, varied sentence structure]
-[Include personal story/most important concerns if provided]
-
-[Conclusion]
-
-Mise le Meas,
-
-${firstName} ${lastName}
-
-Generate the complete 1200-1400 word letter now:`;
+Begin the letter now:`;
 
     console.log('Calling Claude API...');
     
@@ -867,13 +833,30 @@ Generate the complete 1200-1400 word letter now:`;
     const generatedLetter = claudeResponse.content[0].text;
     console.log('Letter generated (' + generatedLetter.length + ' chars)');
     
-    // Clean up any HTML tags that Claude might have added
+    // Clean up any HTML tags and fix character encoding issues
     const cleanedLetter = generatedLetter
       .replace(/<\/?u>/gi, '')  // Remove <u> and </u> tags
       .replace(/<\/?b>/gi, '')  // Remove <b> and </b> tags
       .replace(/<\/?i>/gi, '')  // Remove <i> and </i> tags
       .replace(/<\/?em>/gi, '') // Remove <em> and </em> tags
-      .replace(/<\/?strong>/gi, ''); // Remove <strong> and </strong> tags
+      .replace(/<\/?strong>/gi, '') // Remove <strong> and </strong> tags
+      // Fix common UTF-8 encoding issues
+      .replace(/â€"/g, '—')  // Fix em dash
+      .replace(/â€"/g, '–')  // Fix en dash
+      .replace(/â€˜/g, ''')  // Fix left single quote
+      .replace(/â€™/g, ''')  // Fix right single quote
+      .replace(/â€œ/g, '"')  // Fix left double quote
+      .replace(/â€/g, '"')   // Fix right double quote
+      .replace(/â€¦/g, '…')  // Fix ellipsis
+      .replace(/Ã¡/g, 'á')   // Fix á
+      .replace(/Ã©/g, 'é')   // Fix é
+      .replace(/Ã­/g, 'í')   // Fix í
+      .replace(/Ã³/g, 'ó')   // Fix ó
+      .replace(/Ãº/g, 'ú')   // Fix ú
+      // Simpler approach: just use standard ASCII dashes
+      .replace(/[—–]/g, '-') // Convert all fancy dashes to simple dash
+      .replace(/['']/g, "'")  // Convert all fancy single quotes to straight quote
+      .replace(/[""]/g, '"'); // Convert all fancy double quotes to straight quote
     
     // PREPEND the formatted address to the letter
     // This way Claude never sees the full address and can't refuse
