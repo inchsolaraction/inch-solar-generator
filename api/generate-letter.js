@@ -594,6 +594,24 @@ module.exports = async (req, res) => {
     
     const selectedConcernLabels = selectedConcernUUIDs.map(uuid => CONCERN_UUID_MAP[uuid]).filter(label => label);
     
+    // Dynamic word count based on number of concerns
+    // Base: 1200-1400 for 5 or fewer concerns
+    // Add ~150 words per additional concern beyond 5
+    const concernCount = selectedConcernLabels.length;
+    let minWords, maxWords;
+    
+    if (concernCount <= 5) {
+      minWords = 1200;
+      maxWords = 1400;
+    } else {
+      // Add 150 words per concern beyond 5
+      const extraConcerns = concernCount - 5;
+      minWords = 1200 + (extraConcerns * 150);
+      maxWords = 1400 + (extraConcerns * 150);
+    }
+    
+    console.log(`Dynamic word count: ${concernCount} concerns = ${minWords}-${maxWords} words`);
+    
     // Extract ALL concern details from the updated form
     const concerns = {
       food_security: cleanText(formData['What are your concerns around Food Security \n'] || formData['What are your concerns around Food Security'] || ''),
@@ -787,7 +805,7 @@ Draft a formal, professional planning objection letter that:
 2. References relevant Irish planning guidelines and regulations
 3. Uses appropriate legal terminology
 4. Maintains a professional, respectful tone
-5. Is approximately 1200-1400 words
+5. Is approximately ${minWords}-${maxWords} words
 6. Uses ${randomFormat} for the main objection points
 
 Write the letter using standard planning objection format. Start with today's date (${formattedDate}), then proper letterhead addressing Cork County Council, then the objection itself. 
