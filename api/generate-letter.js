@@ -840,23 +840,22 @@ Begin the letter now:`;
       .replace(/<\/?i>/gi, '')  // Remove <i> and </i> tags
       .replace(/<\/?em>/gi, '') // Remove <em> and </em> tags
       .replace(/<\/?strong>/gi, '') // Remove <strong> and </strong> tags
-      // Fix common UTF-8 encoding issues
-      .replace(/â€"/g, '—')  // Fix em dash
-      .replace(/â€"/g, '–')  // Fix en dash
-      .replace(/â€˜/g, ''')  // Fix left single quote
-      .replace(/â€™/g, ''')  // Fix right single quote
-      .replace(/â€œ/g, '"')  // Fix left double quote
-      .replace(/â€/g, '"')   // Fix right double quote
-      .replace(/â€¦/g, '…')  // Fix ellipsis
-      .replace(/Ã¡/g, 'á')   // Fix á
-      .replace(/Ã©/g, 'é')   // Fix é
-      .replace(/Ã­/g, 'í')   // Fix í
-      .replace(/Ã³/g, 'ó')   // Fix ó
-      .replace(/Ãº/g, 'ú')   // Fix ú
-      // Simpler approach: just use standard ASCII dashes
-      .replace(/[—–]/g, '-') // Convert all fancy dashes to simple dash
-      .replace(/['']/g, "'")  // Convert all fancy single quotes to straight quote
-      .replace(/[""]/g, '"'); // Convert all fancy double quotes to straight quote
+      // Fix common UTF-8 encoding issues (using hex codes to avoid syntax errors)
+      .replace(/\u00e2\u0080\u0093/g, '-')  // Fix en dash
+      .replace(/\u00e2\u0080\u0094/g, '-')  // Fix em dash
+      .replace(/\u00e2\u0080\u0098/g, "'")  // Fix left single quote
+      .replace(/\u00e2\u0080\u0099/g, "'")  // Fix right single quote
+      .replace(/\u00e2\u0080\u009c/g, '"')  // Fix left double quote
+      .replace(/\u00e2\u0080\u009d/g, '"')  // Fix right double quote
+      .replace(/\u00c3\u00a1/g, 'a')        // Fix á
+      .replace(/\u00c3\u00a9/g, 'e')        // Fix é
+      .replace(/\u00c3\u00ad/g, 'i')        // Fix í
+      .replace(/\u00c3\u00b3/g, 'o')        // Fix ó
+      .replace(/\u00c3\u00ba/g, 'u')        // Fix ú
+      // Also handle properly encoded unicode characters
+      .replace(/[\u2013\u2014]/g, '-')      // Convert en dash and em dash to simple dash
+      .replace(/[\u2018\u2019]/g, "'")      // Convert smart single quotes to straight
+      .replace(/[\u201c\u201d]/g, '"');     // Convert smart double quotes to straight
     
     // PREPEND the formatted address to the letter
     // This way Claude never sees the full address and can't refuse
