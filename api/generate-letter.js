@@ -175,7 +175,7 @@ function formatAddress(fullAddress) {
 }
 
 // Create formatted text file for inputs
-function createInputsTextFile(formData, firstName, lastName) {
+function createInputsTextFile(formData, firstName, lastName, selectedConcernLabels = []) {
   const now = new Date();
   const dd = String(now.getDate()).padStart(2, '0');
   const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -205,16 +205,21 @@ function createInputsTextFile(formData, firstName, lastName) {
   content += `SELECTED CONCERNS\n`;
   content += `${'='.repeat(80)}\n\n`;
   
-  // Add main concerns checklist
-  if (formData['What are your main concerns with the Solar Development ?']) {
-    content += `Main Concerns Selected:\n${formData['What are your main concerns with the Solar Development ?']}\n\n`;
+  // Show the concerns that were selected (checkboxes checked)
+  if (selectedConcernLabels && selectedConcernLabels.length > 0) {
+    selectedConcernLabels.forEach((label, index) => {
+      content += `${index + 1}. ${label}\n`;
+    });
+    content += `\n`;
+  } else {
+    content += `(No concerns selected)\n\n`;
   }
   
   content += `${'='.repeat(80)}\n`;
   content += `DETAILED CONCERNS\n`;
   content += `${'='.repeat(80)}\n\n`;
   
-  // Add all concern detail fields
+  // Add all concern detail fields WHERE USER WROTE SOMETHING
   const concernFields = Object.entries(formData).filter(([key]) => 
     key.startsWith('What are your concerns around')
   );
@@ -223,6 +228,25 @@ function createInputsTextFile(formData, firstName, lastName) {
     if (value && value.trim()) {
       const cleanKey = key.replace(/^What are your concerns around /, '').replace(/\n/g, '').trim();
       content += `${cleanKey}:\n${value}\n\n`;
+    }
+  }
+  
+  // Also show concerns that were SELECTED but have NO details written
+  if (selectedConcernLabels && selectedConcernLabels.length > 0) {
+    const detailedConcerns = concernFields
+      .filter(([, value]) => value && value.trim())
+      .map(([key]) => key.replace(/^What are your concerns around /, '').replace(/\n/g, '').trim());
+    
+    const concernsWithoutDetails = selectedConcernLabels.filter(
+      label => !detailedConcerns.some(dc => label.includes(dc) || dc.includes(label.split('/')[0]))
+    );
+    
+    if (concernsWithoutDetails.length > 0) {
+      content += `\nConcerns selected (no additional details provided):\n`;
+      concernsWithoutDetails.forEach(label => {
+        content += `• ${label}\n`;
+      });
+      content += `\n`;
     }
   }
   
@@ -896,7 +920,7 @@ Begin the letter now:`;
     
     // Generate text files
     console.log('Creating formatted text files...');
-    const inputsContent = createInputsTextFile(formData, firstName, lastName);
+    const inputsContent = createInputsTextFile(formData, firstName, lastName, selectedConcernLabels);
     const letterContent = createLetterTextFile(letterWithAddress, firstName, lastName);
     
     // Upload to Dropbox
