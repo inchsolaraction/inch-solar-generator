@@ -881,7 +881,14 @@ Format requirements:
 
 Begin the letter now:`;
 
-    console.log('Calling Claude API...');
+    // Calculate max_tokens based on expected word count
+    // Formula: (maxWords * 1.4) = tokens needed (with safety margin)
+    const estimatedTokens = Math.ceil(maxWords * 1.4);
+    // Cap at 3500 to stay well under API limits and reduce timeout risk
+    const maxTokens = Math.min(estimatedTokens, 3500);
+    
+    console.log(`Calling Claude API with ${maxTokens} max_tokens...`);
+    const apiCallStart = Date.now();
     
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
@@ -901,13 +908,14 @@ Begin the letter now:`;
       },
       JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 4096, // Increased to handle up to ~3000 word letters without truncation
+        max_tokens: maxTokens,  // Dynamic based on concern count
         messages: [{ role: 'user', content: prompt }]
       })
     );
     
     const generatedLetter = claudeResponse.content[0].text;
-    console.log('Letter generated (' + generatedLetter.length + ' chars)');
+    const apiCallDuration = ((Date.now() - apiCallStart) / 1000).toFixed(1);
+    console.log(`Letter generated in ${apiCallDuration}s (${generatedLetter.length} chars)`);
     
     // Clean up any HTML tags and fix character encoding issues
     const cleanedLetter = generatedLetter
