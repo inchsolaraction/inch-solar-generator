@@ -608,29 +608,25 @@ module.exports = async (req, res) => {
     const occupation = cleanText(formData['What do you work at?'] || '');
     
     // Parse selected concerns from checkbox fields
-    // Tally sends checkboxes in various ways - try all methods
+    // Tally sends the main checkbox field with an ARRAY of UUIDs
     let selectedConcernLabels = [];
     
-    // Method 1: Look for question_eREaMx pattern (new format with tip text)
-    const checkboxPattern = /question_eREaMx_([a-f0-9-]+)/;
+    // Method 1: Check the main question_eREaMx field (contains array of UUIDs)
+    const mainCheckboxField = formData['question_eREaMx'];
     
-    for (const [key, value] of Object.entries(formData)) {
-      if (checkboxPattern.test(key) && value) {
-        // Convert value to string
-        const valueStr = Array.isArray(value) ? value.join(',') : String(value);
-        
-        // Extract the concern label from parentheses at the end: "(Food Security)"
-        const match = valueStr.match(/\(([^)]+)\)\s*$/);
-        if (match && match[1]) {
-          const label = match[1].trim();
-          if (!selectedConcernLabels.includes(label)) {
-            selectedConcernLabels.push(label);
-          }
+    if (Array.isArray(mainCheckboxField) && mainCheckboxField.length > 0) {
+      console.log('Found main checkbox field with', mainCheckboxField.length, 'UUIDs');
+      
+      // Map UUIDs to labels using CONCERN_UUID_MAP
+      mainCheckboxField.forEach(uuid => {
+        const label = CONCERN_UUID_MAP[uuid];
+        if (label && !selectedConcernLabels.includes(label)) {
+          selectedConcernLabels.push(label);
         }
-      }
+      });
     }
     
-    // Method 2: If no concerns found, try the old format
+    // Method 2: Fallback - try old format field names
     if (selectedConcernLabels.length === 0) {
       const concernsRaw = formData['What are your main concerns with the Solar Development ?\n'] || 
                           formData['What are your main concerns with the Solar Development ?'] || '';
@@ -654,14 +650,6 @@ module.exports = async (req, res) => {
     }
     
     console.log('Selected concerns:', selectedConcernLabels.length > 0 ? selectedConcernLabels.join(', ') : 'NONE FOUND');
-    console.log('Total form fields:', Object.keys(formData).length);
-    
-    // Debug: Log all question_eREaMx fields to see what we're getting
-    const debugCheckboxFields = Object.keys(formData).filter(k => k.includes('question_eREaMx'));
-    if (debugCheckboxFields.length > 0) {
-      console.log('Checkbox fields found:', debugCheckboxFields.length);
-      console.log('First checkbox sample:', debugCheckboxFields[0], '=', formData[debugCheckboxFields[0]]);
-    }
     
     // Dynamic word count based on number of concerns
     // Base: 1200-1400 for 5 or fewer concerns
