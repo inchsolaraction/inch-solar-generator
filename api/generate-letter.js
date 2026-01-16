@@ -1,6 +1,9 @@
-// Inch Solar Development - Objection Letter Generator V28
-// Fixed token calculation to prevent letter truncation (using 2.0x multiplier)
-// Aggressive special character removal to prevent encoding issues
+// Inch Solar Development - Objection Letter Generator V29
+// CRITICAL FIXES:
+// - Strict word count enforcement (Claude was generating 4000+ word letters!)
+// - Reduced debug logging for production performance
+// - 2.0x token multiplier for complete letters
+// - Tested limit: 7 concerns maximum (8+ timeout)
 // Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
 // Uses native redis client instead of @vercel/kv
 
@@ -650,7 +653,7 @@ module.exports = async (req, res) => {
       }
     }
     
-    console.log('Selected concerns:', selectedConcernLabels.length > 0 ? selectedConcernLabels.join(', ') : 'NONE FOUND');
+    console.log(`Selected ${selectedConcernLabels.length} concerns - Target: ${minWords}-${maxWords} words`);
     
     // Dynamic word count based on number of concerns
     // Base: 1200-1400 for 5 or fewer concerns
@@ -863,8 +866,14 @@ Draft a formal, professional planning objection letter that:
 2. References relevant Irish planning guidelines and regulations
 3. Uses appropriate legal terminology
 4. Maintains a professional, respectful tone
-5. Is approximately ${minWords}-${maxWords} words
+5. **CRITICAL: MUST be EXACTLY ${minWords}-${maxWords} words. This is a strict requirement, not a suggestion. Do not exceed ${maxWords} words.**
 6. Uses ${randomFormat} for the main objection points
+
+**WORD COUNT ENFORCEMENT:**
+- Target: ${minWords}-${maxWords} words
+- Maximum allowed: ${maxWords} words
+- If approaching limit, conclude the letter professionally
+- Better to be slightly under than over the limit
 
 Write the letter using standard planning objection format. Start with today's date (${formattedDate}), then proper letterhead addressing Cork County Council, then the objection itself. 
 
