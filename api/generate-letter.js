@@ -653,8 +653,6 @@ module.exports = async (req, res) => {
       }
     }
     
-    console.log(`Selected ${selectedConcernLabels.length} concerns - Target: ${minWords}-${maxWords} words`);
-    
     // Dynamic word count based on number of concerns
     // Base: 1200-1400 for 5 or fewer concerns
     // Add ~150 words per additional concern beyond 5
@@ -669,6 +667,10 @@ module.exports = async (req, res) => {
       const extraConcerns = concernCount - 5;
       minWords = 1200 + (extraConcerns * 150);
       maxWords = 1400 + (extraConcerns * 150);
+    }
+    
+    console.log(`Selected ${concernCount} concerns - Target: ${minWords}-${maxWords} words`);
+    maxWords = 1400 + (extraConcerns * 150);
     }
     
     console.log(`Dynamic word count: ${concernCount} concerns = ${minWords}-${maxWords} words`);
