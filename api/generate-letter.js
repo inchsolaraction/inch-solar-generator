@@ -1,6 +1,6 @@
-// Inch Solar Development - Objection Letter Generator V26
-// Fixed letter truncation and character encoding in inputs file
-// Fixed concern extraction after Tally form field changes
+// Inch Solar Development - Objection Letter Generator V28
+// Fixed token calculation to prevent letter truncation (using 2.0x multiplier)
+// Aggressive special character removal to prevent encoding issues
 // Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
 // Uses native redis client instead of @vercel/kv
 
@@ -874,6 +874,9 @@ ${distance && !distance.includes('5km+') ? `NOTE: This client lives ${distance} 
 
 Format requirements:
 - Plain text only (no HTML)
+- DO NOT use bullet points (•), em dashes (—), or special characters
+- Use simple dashes (-) for lists if needed
+- Use only standard ASCII characters (a-z, A-Z, 0-9, basic punctuation)
 - Formal business letter style
 - Reference planning application 25/6876
 - Site is 328.28 hectares (always state as "800+ acres" or "over 800 acres")
@@ -882,12 +885,18 @@ Format requirements:
 Begin the letter now:`;
 
     // Calculate max_tokens based on expected word count
-    // Formula: (maxWords * 1.4) = tokens needed (with safety margin)
-    const estimatedTokens = Math.ceil(maxWords * 1.4);
-    // Cap at 3500 to stay well under API limits and reduce timeout risk
-    const maxTokens = Math.min(estimatedTokens, 3500);
+    // Formula: (maxWords * 2.0) = tokens needed with proper safety margin
+    // English text needs ~1.3-1.5 tokens per word for input, but OUTPUT needs more
+    // for formatting, structure, etc. 2.0x provides safe margin.
+    const estimatedTokens = Math.ceil(maxWords * 2.0);
     
-    console.log(`Calling Claude API with ${maxTokens} max_tokens...`);
+    // Use dynamic cap based on concern count:
+    // - Small letters (1-7 concerns): No cap, use estimated
+    // - Medium/Large letters (8+ concerns): Cap at 4096 
+    const tokenCap = concernCount <= 7 ? estimatedTokens : 4096;
+    const maxTokens = Math.min(estimatedTokens, tokenCap);
+    
+    console.log(`Calling Claude API with ${maxTokens} max_tokens (${concernCount} concerns, ${minWords}-${maxWords} words, estimated ${estimatedTokens} tokens)...`);
     const apiCallStart = Date.now();
     
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
@@ -917,29 +926,37 @@ Begin the letter now:`;
     const apiCallDuration = ((Date.now() - apiCallStart) / 1000).toFixed(1);
     console.log(`Letter generated in ${apiCallDuration}s (${generatedLetter.length} chars)`);
     
-    // Clean up any HTML tags and fix character encoding issues
+    // AGGRESSIVE: Clean up any HTML tags and ALL special characters
     const cleanedLetter = generatedLetter
       .replace(/<\/?u>/gi, '')  // Remove <u> and </u> tags
       .replace(/<\/?b>/gi, '')  // Remove <b> and </b> tags
       .replace(/<\/?i>/gi, '')  // Remove <i> and </i> tags
       .replace(/<\/?em>/gi, '') // Remove <em> and </em> tags
       .replace(/<\/?strong>/gi, '') // Remove <strong> and </strong> tags
-      // Fix common UTF-8 encoding issues (using hex codes to avoid syntax errors)
+      // Remove ALL bullet-like characters (these cause encoding issues)
+      .replace(/[•●○◦⦿⦾▪▫■□]/g, '-')  // Convert bullets to simple dashes
+      .replace(/^\s*[-–—]\s*/gm, '- ')  // Normalize dashes at line start
+      // Fix common UTF-8 encoding issues
       .replace(/\u00e2\u0080\u0093/g, '-')  // Fix en dash
       .replace(/\u00e2\u0080\u0094/g, '-')  // Fix em dash
       .replace(/\u00e2\u0080\u0098/g, "'")  // Fix left single quote
       .replace(/\u00e2\u0080\u0099/g, "'")  // Fix right single quote
       .replace(/\u00e2\u0080\u009c/g, '"')  // Fix left double quote
       .replace(/\u00e2\u0080\u009d/g, '"')  // Fix right double quote
+      .replace(/\u00e2\u0080\u00a2/g, '-')  // Fix bullet character encoding
       .replace(/\u00c3\u00a1/g, 'a')        // Fix á
       .replace(/\u00c3\u00a9/g, 'e')        // Fix é
       .replace(/\u00c3\u00ad/g, 'i')        // Fix í
       .replace(/\u00c3\u00b3/g, 'o')        // Fix ó
       .replace(/\u00c3\u00ba/g, 'u')        // Fix ú
-      // Also handle properly encoded unicode characters
+      // Convert all Unicode special characters to ASCII
       .replace(/[\u2013\u2014]/g, '-')      // Convert en dash and em dash to simple dash
       .replace(/[\u2018\u2019]/g, "'")      // Convert smart single quotes to straight
-      .replace(/[\u201c\u201d]/g, '"');     // Convert smart double quotes to straight
+      .replace(/[\u201c\u201d]/g, '"')      // Convert smart double quotes to straight
+      .replace(/[\u2022\u2023\u2043]/g, '-') // Convert various bullet points to dash
+      .replace(/[\u2026]/g, '...')          // Convert ellipsis to three periods
+      // Remove any remaining non-ASCII characters (except newlines and basic punctuation)
+      .replace(/[^\x20-\x7E\n\r]/g, '');    // Keep only printable ASCII + newlines
     
     // PREPEND the formatted address to the letter
     // This way Claude never sees the full address and can't refuse
