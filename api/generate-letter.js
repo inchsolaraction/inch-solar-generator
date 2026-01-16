@@ -886,13 +886,14 @@ Begin the letter now:`;
 
     // Calculate max_tokens based on expected word count
     // Formula: (maxWords * 2.0) = tokens needed with proper safety margin
-    // English text needs ~1.3-1.5 tokens per word for input, but OUTPUT needs more
-    // for formatting, structure, etc. 2.0x provides safe margin.
+    // TESTED LIMITS (Vercel 60s timeout):
+    // - 7 concerns: Works ✅
+    // - 8 concerns: TIMEOUT ❌
+    // - 9 concerns: TIMEOUT ❌
+    // - 10 concerns: TIMEOUT ❌
     const estimatedTokens = Math.ceil(maxWords * 2.0);
     
-    // Use dynamic cap based on concern count:
-    // - Small letters (1-7 concerns): No cap, use estimated
-    // - Medium/Large letters (8+ concerns): Cap at 4096 
+    // Dynamic cap: Use full estimate for 1-7 concerns (tested limit)
     const tokenCap = concernCount <= 7 ? estimatedTokens : 4096;
     const maxTokens = Math.min(estimatedTokens, tokenCap);
     
