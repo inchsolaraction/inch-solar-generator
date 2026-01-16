@@ -670,10 +670,6 @@ module.exports = async (req, res) => {
     }
     
     console.log(`Selected ${concernCount} concerns - Target: ${minWords}-${maxWords} words`);
-    maxWords = 1400 + (extraConcerns * 150);
-    }
-    
-    console.log(`Dynamic word count: ${concernCount} concerns = ${minWords}-${maxWords} words`);
     
     // Extract ALL concern details from the updated form
     const concerns = {
