@@ -1,8 +1,7 @@
-json{
+{
   "functions": {
-    "api/generate-letter.js": {
+    "api/*.js": {
       "maxDuration": 300
     }
   }
 }
-
