@@ -1,4 +1,5 @@
 // Inch Solar Development - Objection Letter Generator V29
+// Pro plan enabled - 300 second timeout
 // CRITICAL FIXES:
 // - Strict word count enforcement (Claude was generating 4000+ word letters!)
 // - Reduced debug logging for production performance
