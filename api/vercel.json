@@ -5,7 +5,4 @@ json{
     }
   }
 }
-```
-```
-4. Commit message: "Set 300s timeout in vercel.json"
-5. Click "Commit new file"
+
