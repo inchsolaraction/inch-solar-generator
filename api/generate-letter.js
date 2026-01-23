@@ -1,10 +1,12 @@
-// Inch Solar Development - Objection Letter Generator V29
-// Pro plan enabled - 300 second timeout
-// CRITICAL FIXES:
-// - Strict word count enforcement (Claude was generating 4000+ word letters!)
-// - Reduced debug logging for production performance
-// - 2.0x token multiplier for complete letters
-// - Tested limit: 7 concerns maximum (8+ timeout)
+// Inch Solar Development - Objection Letter Generator V30
+// ADDRESS FIX: Keep full address, remove EIRCODE only (not county)
+// FACT CORRECTIONS:
+// - Rath fort is 335 meters from development
+// - Development encroaches on seven townlands  
+// - 56 BSS batteries (not 50 containers)
+// - Equivalent to 260 Croke Park pitches (not 450 football pitches)
+// PREVIOUS: Strict word count enforcement, reduced logging, 2.0x token multiplier
+// Tested limit: 7 concerns maximum (8+ timeout even with Pro plan)
 // Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
 // Uses native redis client instead of @vercel/kv
 
@@ -87,7 +89,7 @@ const COMMITTEE_RESEARCH = {
   
   decommissioning: `The decommissioning plan is vague and provides no financial security for site restoration. Who will bear the cost of decommissioning if the developer becomes insolvent after 35 years?`,
   
-  archaeology: `There are 15 recorded monuments within 5km of the proposed site according to the National Monuments Service. The developer's EIAR has inadequately assessed the archaeological impact, particularly concerning Ring forts and Medieval sites in the immediate vicinity.`,
+  archaeology: `There are 15 recorded monuments within 5km of the proposed site according to the National Monuments Service. A rath fort is located just 335 meters from the development boundary. The developer's EIAR has inadequately assessed the archaeological impact, particularly concerning ring forts and medieval sites in the immediate vicinity.`,
   
   flora_fauna: `The development will result in the permanent loss of agricultural grassland and hedgerows, impacting local biodiversity. The cumulative effect on flora and fauna from this and other developments has not been assessed.`,
   
@@ -152,29 +154,14 @@ function cleanText(text) {
     .trim();
 }
 
-// Extract last two lines of address, remove eircode and counties
+// Format address: Keep full address but remove EIRCODE only
 function formatAddress(fullAddress) {
   if (!fullAddress) return '';
   
-  // List of 32 Irish counties to remove
-  const countyPatterns = [
-    'Antrim', 'Armagh', 'Carlow', 'Cavan', 'Clare', 'Cork', 'Derry', 
-    'Donegal', 'Down', 'Dublin', 'Fermanagh', 'Galway', 'Kerry', 
-    'Kildare', 'Kilkenny', 'Laois', 'Leitrim', 'Limerick', 'Longford', 
-    'Louth', 'Mayo', 'Meath', 'Monaghan', 'Offaly', 'Roscommon', 
-    'Sligo', 'Tipperary', 'Tyrone', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'
-  ];
-  
-  // Remove eircode (pattern: Letter+2digits+4alphanumeric)
+  // Remove eircode only (pattern: Letter+2digits+4alphanumeric)
   let cleaned = fullAddress.replace(/\b[A-Z]\d{2}\s?[A-Z0-9]{4}\b/gi, '').trim();
   
-  // Remove county names
-  countyPatterns.forEach(county => {
-    const regex = new RegExp(`\\b(Co\\.?\\s+)?${county}\\b`, 'gi');
-    cleaned = cleaned.replace(regex, '').trim();
-  });
-  
-  // Clean up multiple spaces, commas
+  // Clean up multiple spaces and commas
   cleaned = cleaned.replace(/\s+/g, ' ').replace(/,\s*,/g, ',').replace(/,\s*$/g, '').replace(/^\s*,\s*/, '').trim();
   
   return cleaned;
@@ -721,7 +708,7 @@ module.exports = async (req, res) => {
         'Flooding': 'Site at high elevation - altering natural drainage increases downstream flood risk. Storm Babet (October 2023) caused severe local flooding. Large hard surfaces increase runoff speed and volume. Construction erosion worsens flood contamination. Site near floodplains and Tourig River waterway.',
         'Mental health': 'Anxiety over 40-year industrialization of rural landscape. Stress from construction noise, disruption, and uncertainty. Loss of "place attachment" to familiar rural setting. Perceived loss of control over community decisions. Construction phase creates intensive temporary stress.',
         'Glint and glare': 'Panel reflections cause temporary blindness for drivers (especially low sun - morning/evening). Aviation hazard during approach phases. Continuous glare reduces quality of life for nearby homes. Birds mistake reflective panels for water - collision risk. Studies show reduced property values from visual glare.',
-        'Location, Scale and size': '250MW farm = 800 acres (450 football pitches). Would provide 5% of Ireland\'s 2030 solar target in ONE location - hugely disproportionate. 220kV substation: 10-15m high industrial structures. Largest solar farm in Ireland, 2nd largest in Europe - no test cases for impacts.',
+        'Location, Scale and size': '250MW farm = 800 acres (equivalent to 260 Croke Park pitches). The development directly encroaches on seven townlands. Would provide 5% of Ireland\'s 2030 solar target in ONE location - hugely disproportionate. 220kV substation: 10-15m high industrial structures. Largest solar farm in Ireland, 2nd largest in Europe - no test cases for impacts.',
         'Noise & vibration': 'Construction: Months of pile driving, heavy machinery, diggers - constant noise. Inverters: Hundreds producing constant electrical hum 24/7. Substation transformers: Continuous humming/buzzing day and night. BESS cooling fans: Large battery systems run constantly. Low-frequency hum travels far in quiet countryside - sleep disruption, stress.',
         'No clear rational plan': 'No specific areas designated in national or county plans for utility-scale solar. Government guidelines delayed until 2027 minimum. National plan requires feasibility studies near industrial parks/brownfield sites first - not prime agricultural land. High-value landscapes like Inch Killeagh deemed "sensitive areas". Multiple agencies (DECC, SEAI) should conduct studies - not single private company.',
         'Lack of legislation': 'Planning Act 2000 requires EIA for scale, cumulative impact, habitat assessment. No national standards for utility-scale solar (unlike homes/businesses). Cork Council plan requires protection of: natural heritage, biodiversity, cultural heritage, scenic amenity, archaeological sites. Strategic Flood Risk Assessment required for elevated sites.',
@@ -736,7 +723,7 @@ module.exports = async (req, res) => {
         'Privacy': 'Elevated site overlooks 342+ homes. Security cameras around entire perimeter - Carlow project cameras pointed into neighboring properties. Survey personnel caught using binoculars watching children playing - reported to Gardaí. Zero screening possible on elevated site. 40 years of surveillance infrastructure overlooking private homes and gardens.',
         'Visual impact': '800+ acres visible from 30+ townlands including: Barnaviddane, Knocknagappagh, Ballydaniel, Ballyneague, Youghalpark, Cornaveigh, Castlemiles, and many more. Elevated site = impossible to screen. Spectacular rural views permanently lost. Beside busy Youghal-Tallow road (R634) - industrial blight on scenic route. 842m from impressive Rath Fort - tourism impact.',
         'Economic knock-on/loss of jobs': 'Loss of 1,300 cows = 9.75 million litres milk lost annually for Dairygold processing. Supporting businesses: Vets, feed suppliers, farm equipment, transport, dairy processing - all lose revenue. Solar provides ZERO local employment after construction. No economic advantage to area. Local businesses that depend on agricultural economy will suffer.',
-        'Battery Storage fire risk': '50 containers of Lithium-ion batteries proposed. 342 households within 1.5km + 2 schools nearby. NO Irish regulations for BESS. NO insurance available in Ireland for BESS. Gases (hydrogen fluoride, carbon monoxide, hydrocarbons) are odorless, colorless - severe respiratory danger. Site on "Cronin\'s Bogs" (springs) - direct line to Tourig River (Youghal drinking water). Xerotech Clare fire (Jan 2025): 1,700 students evacuated, 5 firefighters hospitalized, months of contamination, €20-80M cleanup cost. Fire brigades let chemical fires burn - toxic smoke, evacuations ordered. Kildare & Cork councils refused BESS on health/safety grounds.',
+        'Battery Storage fire risk': '56 BSS (Battery Storage System) batteries proposed in the application. 342 households within 1.5km + 2 schools nearby. NO Irish regulations for BESS. NO insurance available in Ireland for BESS. Gases (hydrogen fluoride, carbon monoxide, hydrocarbons) are odorless, colorless - severe respiratory danger. Site on "Cronin\'s Bogs" (springs) - direct line to Tourig River (Youghal drinking water). Xerotech Clare fire (Jan 2025): 1,700 students evacuated, 5 firefighters hospitalized, months of contamination, €20-80M cleanup cost. Fire brigades let chemical fires burn - toxic smoke, evacuations ordered. Kildare & Cork councils refused BESS on health/safety grounds.',
         'Devaluation of property': 'SEAI 2016 report outdated (based on 25-acre farms, not 800+ acres). Multiple peer-reviewed studies show 5-20% property value loss within 0.8-1.6km. Virginia Tech, Lawrence Berkeley Lab, URI, Wisconsin studies document decline. Mortgage of €400k could lose €6,000-€20,000 in value. 2023 study: 5.4% price reduction for properties 750m south of >5MW solar farm. Higher losses during construction phase. 3 houses + 1 site already for sale since announcement (unusual for area).',
         'Loss of agricultural land': 'Prime Grade 1-2 agricultural land proposed. 6 townlands affected: Barnaviddane (125 of 250 acres lost), Knocknagappagh, Ballyneague, Ballydaniel, Youghalpark, Cornaveigh. Greenhills = 2-3% of Ireland\'s entire 8GW solar target in ONE location (hugely disproportionate). 61,000 townlands in Ireland - just 6 provide 2% of national renewable target. UK requires poorer quality land be used first - Grade 1-2 protected. France limits agricultural land solar to <10% production loss, <40% coverage. IFA: Solar should use low-grade land, not productive farmland.',
         'Security': 'Isolated utility-scale power generation = obvious security target (road/air access). Larger geopolitical concerns (Russian interest in EU energy infrastructure). Physical threats: Sabotage, explosion. Digital threats: System hacking, management compromise. No police, emergency services, or security personnel nearby. No physical or digital security risk assessment in collateral. CCTV and high fencing inappropriate for rural setting - impacts wildlife movement. Ukraine war lesson: Centralized grid vulnerable - decentralized generation more secure.',
