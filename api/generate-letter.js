@@ -1,12 +1,10 @@
-// Inch Solar Development - Objection Letter Generator V30
-// ADDRESS FIX: Keep full address, remove EIRCODE only (not county)
-// FACT CORRECTIONS:
-// - Rath fort is 335 meters from development
-// - Development encroaches on seven townlands  
-// - 56 BSS batteries (not 50 containers)
-// - Equivalent to 260 Croke Park pitches (not 450 football pitches)
-// PREVIOUS: Strict word count enforcement, reduced logging, 2.0x token multiplier
-// Tested limit: 7 concerns maximum (8+ timeout even with Pro plan)
+// Inch Solar Development - Objection Letter Generator V31
+// FIELD MATCHING FIX: Flexible matching for "personal story" and "additional concerns" fields
+// - These fields weren't appearing in letters or inputs files
+// - Added findFormField() helper to search for field name variations
+// - Now searches for multiple possible field names (handles Tally field name changes)
+// PREVIOUS V30: Full address (minus eircode), corrected facts (335m rath fort, 260 Croke Park, 7 townlands, 56 BSS)
+// Tested limit: 7 concerns maximum (Pro plan 300s timeout configured)
 // Complete system with SendGrid, Dropbox, formatted text files, and persistent duplicate prevention
 // Uses native redis client instead of @vercel/kv
 
@@ -243,12 +241,18 @@ function createInputsTextFile(formData, firstName, lastName, selectedConcernLabe
     }
   }
   
-  // Add additional fields
-  if (formData['Do you have additional concerns that are were not listed?']) {
+  // Add additional fields with flexible matching
+  const additionalConcerns = findFormField(formData, [
+    'Do you have additional concerns that are were not listed?',
+    'Do you have additional concerns that were not listed?',
+    'Do you have additional concerns',
+    'additional concerns'
+  ]);
+  if (additionalConcerns) {
     content += `${'='.repeat(80)}\n`;
     content += `ADDITIONAL CONCERNS\n`;
     content += `${'='.repeat(80)}\n\n`;
-    content += `${formData['Do you have additional concerns that are were not listed?']}\n\n`;
+    content += `${additionalConcerns}\n\n`;
   }
   
   if (formData['Out of the concerns you have selected or mentioned above, are there any that are most important to you?']) {
@@ -258,11 +262,18 @@ function createInputsTextFile(formData, firstName, lastName, selectedConcernLabe
     content += `${formData['Out of the concerns you have selected or mentioned above, are there any that are most important to you?']}\n\n`;
   }
   
-  if (formData['Can you share a personal story and reason you wish to object.']) {
+  const personalStory = findFormField(formData, [
+    'Can you share a personal story and reason you wish to object. \n',
+    'Can you share a personal story and reason you wish to object.',
+    'Can you share a personal story and reason you wish to object',
+    'personal story',
+    'reason you wish to object'
+  ]);
+  if (personalStory) {
     content += `${'='.repeat(80)}\n`;
     content += `PERSONAL STORY\n`;
     content += `${'='.repeat(80)}\n\n`;
-    content += `${formData['Can you share a personal story and reason you wish to object.']}\n\n`;
+    content += `${personalStory}\n\n`;
   }
   
   content += `${'='.repeat(80)}\n`;
@@ -659,7 +670,26 @@ module.exports = async (req, res) => {
     
     console.log(`Selected ${concernCount} concerns - Target: ${minWords}-${maxWords} words`);
     
-    // Extract ALL concern details from the updated form
+// Helper function to find form field value with flexible name matching
+function findFormField(formData, possibleNames) {
+  for (const name of possibleNames) {
+    if (formData[name]) {
+      return formData[name];
+    }
+  }
+  // Also try case-insensitive partial match
+  const keys = Object.keys(formData);
+  for (const name of possibleNames) {
+    const lowerName = name.toLowerCase();
+    const matchingKey = keys.find(key => key.toLowerCase().includes(lowerName.toLowerCase()));
+    if (matchingKey && formData[matchingKey]) {
+      return formData[matchingKey];
+    }
+  }
+  return '';
+}
+
+// Extract ALL concern details from the updated form
     const concerns = {
       food_security: cleanText(formData['What are your concerns around Food Security \n'] || formData['What are your concerns around Food Security'] || ''),
       river_pollution: cleanText(formData['What are your concerns around River Pollution\n'] || formData['What are your concerns around River Pollution'] || ''),
@@ -691,9 +721,20 @@ module.exports = async (req, res) => {
       air_traffic: cleanText(formData['What are your concerns around Air traffic?\n'] || formData['What are your concerns around Air traffic'] || ''),
       existing_renewables: cleanText(formData['What are your concerns around existing Renewable applications/developments in Cork/West Waterford'] || ''),
       adjacent_renewables: cleanText(formData['What are your concerns around adjacent Renewable applications/development in local area ?\n'] || formData['What are your concerns around adjacent Renewable applications/development in local area'] || ''),
-      additional_concerns: cleanText(formData['Do you have additional concerns that are were not listed?'] || ''),
+      additional_concerns: cleanText(findFormField(formData, [
+        'Do you have additional concerns that are were not listed?',
+        'Do you have additional concerns that were not listed?',
+        'Do you have additional concerns',
+        'additional concerns'
+      ])),
       most_important: cleanText(formData['Out of the concerns you have selected or mentioned above, are there any that are most important to you?'] || ''),
-      personal_story: cleanText(formData['Can you share a personal story and reason you wish to object. \n'] || formData['Can you share a personal story and reason you wish to object.'] || '')
+      personal_story: cleanText(findFormField(formData, [
+        'Can you share a personal story and reason you wish to object. \n',
+        'Can you share a personal story and reason you wish to object.',
+        'Can you share a personal story and reason you wish to object',
+        'personal story',
+        'reason you wish to object'
+      ]))
     };
     
     // Build committee context ONLY for selected concerns to reduce token usage
