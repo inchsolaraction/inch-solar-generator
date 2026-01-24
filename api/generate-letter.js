@@ -165,6 +165,25 @@ function formatAddress(fullAddress) {
   return cleaned;
 }
 
+// Helper function to find form field value with flexible name matching
+function findFormField(formData, possibleNames) {
+  for (const name of possibleNames) {
+    if (formData[name]) {
+      return formData[name];
+    }
+  }
+  // Also try case-insensitive partial match
+  const keys = Object.keys(formData);
+  for (const name of possibleNames) {
+    const lowerName = name.toLowerCase();
+    const matchingKey = keys.find(key => key.toLowerCase().includes(lowerName.toLowerCase()));
+    if (matchingKey && formData[matchingKey]) {
+      return formData[matchingKey];
+    }
+  }
+  return '';
+}
+
 // Create formatted text file for inputs
 function createInputsTextFile(formData, firstName, lastName, selectedConcernLabels = []) {
   const now = new Date();
@@ -671,23 +690,6 @@ module.exports = async (req, res) => {
     console.log(`Selected ${concernCount} concerns - Target: ${minWords}-${maxWords} words`);
     
 // Helper function to find form field value with flexible name matching
-function findFormField(formData, possibleNames) {
-  for (const name of possibleNames) {
-    if (formData[name]) {
-      return formData[name];
-    }
-  }
-  // Also try case-insensitive partial match
-  const keys = Object.keys(formData);
-  for (const name of possibleNames) {
-    const lowerName = name.toLowerCase();
-    const matchingKey = keys.find(key => key.toLowerCase().includes(lowerName.toLowerCase()));
-    if (matchingKey && formData[matchingKey]) {
-      return formData[matchingKey];
-    }
-  }
-  return '';
-}
 
 // Extract ALL concern details from the updated form
     const concerns = {
