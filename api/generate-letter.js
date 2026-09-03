@@ -1,10 +1,10 @@
-// Inch Solar Development - Objection Letter Generator V33
-// NEW: Google Drive upload added alongside Dropbox (both now save copies)
-// - Uses GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, GOOGLE_DRIVE_FOLDER_ID
-// - Same refresh-token pattern as Dropbox: exchange refresh token for short-lived access token, cache it
+// Inch Solar Development - Objection Letter Generator V34
+// NEW APPLICATION UPDATE: Planning reference 25/6876 -> 26/2133, Applicant Orsted -> Perigus Energy Ireland Midco Ltd
+// - Same legal entity, renamed after original application deemed incomplete by Cork County Council (10 Feb 2026)
+// - Letterhead format updated to match confirmed header text exactly
+// - Core site facts (acreage, BESS count, townlands, distances) NOT yet re-verified against new application docs - flagged for follow-up
+// PREVIOUS V33: Google Drive upload added alongside Dropbox (both now save copies)
 // PREVIOUS V32: Rath fort distance corrected to 423m, removed 842m reference, removed Wexford anecdote
-// PREVIOUS V31: Flexible field matching for personal story and additional concerns
-// PREVIOUS V30: Full address (minus eircode), corrected facts (260 Croke Park, 7 townlands, 56 BSS)
 // Tested limit: 7 concerns maximum (Pro plan 300s timeout configured)
 // Complete system with SendGrid, Dropbox, Google Drive, formatted text files, and persistent duplicate prevention
 // Uses native redis client instead of @vercel/kv
@@ -631,7 +631,7 @@ module.exports = async (req, res) => {
         'Impact on children': '2025 Nature study: Chronic noise harms mental health, disrupts sleep, increases stress hormones, causes brain inflammation. Children with additional needs particularly affected. American Public Health Association links noise to cardiovascular issues, cognitive/emotional disorders in children. WHO: Persistent noise disrupts sleep, raises blood pressure, increases stress - especially harmful in quiet rural areas where ambient noise is low.',
         'Road Safety/Traffic during construction': 'Narrow rural roads built for 2 cars - impossible for HGVs up to 16.5m (54 feet). Heavy machinery, 20ft/40ft shipping containers on narrow roads. Increased deer on roads fleeing construction. Danger to children, walkers, cyclists, horse riders. Extended stop/go systems increase traffic jams.',
         'Road infrastructure': 'Local roads modestly maintained - no indication of upgrades planned. Heavy agricultural vehicles PLUS construction HGVs creates dangerous mix. No adjacent economic zone or IDA estate justifying infrastructure. Roads not designed for years of heavy construction traffic.',
-        'Lack of public engagement': 'No public meeting despite numerous requests. Only 342 houses within 1.5km targeted - many never received correspondence. Consultation letters sent August bank holiday weekend - appointments only Tues/Fri 11am-6pm (workdays). 62 face-to-face meetings total - tiny fraction of affected community. One-to-one consultations lack transparency/accountability. Maps/website only published AFTER consultations ended. Orsted declined all requests for public meeting or media debate.',
+        'Lack of public engagement': 'No public meeting despite numerous requests. Only 342 houses within 1.5km targeted - many never received correspondence. Consultation letters sent August bank holiday weekend - appointments only Tues/Fri 11am-6pm (workdays). 62 face-to-face meetings total - tiny fraction of affected community. One-to-one consultations lack transparency/accountability. Maps/website only published AFTER consultations ended. The developer (formerly Orsted, now Perigus Energy, same legal entity) declined all requests for public meeting or media debate.',
         'Decommissioning': 'Ireland lacks large-scale PV recycling facilities - materials exported or landfilled. Panels contain hazardous materials (lead, cadmium). Soil compaction from heavy machinery permanently damages agricultural use. 800+ acres of vegetation cleared - biodiversity loss, erosion risk. No clear financial guarantee (bond/escrow) for 40-year cleanup. Potential leaching of transformer fluids and broken panel materials into soil/water.',
         'Archaeology': '15+ recorded monuments within 5km including: CO056-004 Lime kiln, CO056-002 Ringfort-rath, WA037-009 Earthwork, CO067-001003 Souterrain, CO056-001001 Ancient graveyard. National plan: Archaeological sites = "critical objection grounds". High heritage value - Rath Fort offers protected panoramic historic view. Development contradicts heritage protection requirements.',
         'Flora and fauna (horticulture)': '2+ million sq meters of panels = massive habitat destruction. Construction disrupts breeding, foraging, and shelter for 12+ months. BBC study: Animals displaced during construction do not return. Fencing fragments 1000 acres - blocks wildlife corridors. Mammal access points (30cm x 30cm) too small for deer and large animals. Protected birds: Barn owl, cuckoo, swallow, yellowhammer. Protected fish in Tourig River SAC: Brown trout, sea trout, salmon, eels, lamprey species.',
@@ -718,8 +718,8 @@ Name: ${firstName} ${lastName}${occupation ? `, ${occupation}` : ''}
 Property Location: ${distance} from proposed development site
 
 PLANNING APPLICATION DETAILS:
-Reference: 25/6876
-Applicant: Orsted Onshore Ireland Midco Ltd
+Reference: 26/2133
+Applicant: Perigus Energy Ireland Midco Ltd
 Proposal: 328.28 hectare (800+ acre) Solar Farm
 Location: Knocknagappagh, Barnaviddane, Ballyneague, Ballydaniel, Youghalpark, Ballydaheen and Cornaveigh, Co. Cork
 
@@ -744,7 +744,21 @@ WORD COUNT ENFORCEMENT:
 - If approaching limit, conclude the letter professionally
 - Better to be slightly under than over the limit
 
-Write the letter using standard planning objection format. Start with today's date (${formattedDate}), then proper letterhead addressing Cork County Council, then the objection itself.
+Write the letter starting with EXACTLY this letterhead format (fill in today's date, ${formattedDate}):
+
+${formattedDate}
+
+Planning Department
+Cork County Council
+County Hall
+Cork
+
+RE: FORMAL OBJECTION TO PLANNING APPLICATION 26/2133
+Applicant: Perigus Energy Ireland Midco Ltd
+Proposed Development: 250MW Solar Farm and Battery Energy Storage System
+Location: Knocknagappagh, Barnaviddane, Ballyneague, Ballydaniel, Youghalpark, Ballydaheen and Cornaveigh in County Cork
+
+Then proceed with the objection itself using proper salutation (e.g. "Dear Sir/Madam,") and the objection content.
 
 Focus on the client's specific concerns about: ${selectedConcernLabels.join(', ')}
 
@@ -756,7 +770,7 @@ Format requirements:
 - Use simple dashes (-) for lists if needed
 - Use only standard ASCII characters (a-z, A-Z, 0-9, basic punctuation)
 - Formal business letter style
-- Reference planning application 25/6876
+- Reference planning application 26/2133
 - Site is 328.28 hectares (always state as "800+ acres" or "over 800 acres")
 - Conclude with "Mise le Meas" and client's name
 
