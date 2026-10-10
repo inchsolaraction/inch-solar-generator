@@ -411,8 +411,8 @@ module.exports = async (req, res) => {
 
     const concernCount = selectedTopics.length;
     let minWords, maxWords;
-    if (concernCount <= 5) { minWords = 1000; maxWords = 1300; }
-    else { const extra = concernCount - 5; minWords = 1000 + extra * 150; maxWords = 1300 + extra * 150; }
+    if (concernCount <= 5) { minWords = 850; maxWords = 1050; }
+    else { const extra = concernCount - 5; minWords = 850 + extra * 120; maxWords = 1050 + extra * 120; }
     console.log(`Selected ${concernCount} topics - Target: ${minWords}-${maxWords} words`);
 
     const additional = cleanText(findFormField(formData, ['additional concerns', 'anything else', 'other concerns']));
@@ -470,8 +470,8 @@ Draft a formal, professional planning Observation that:
 1. Presents the client's concerns in proper planning language and keeps strictly to the substation application
 2. Uses specific local facts from the research above (document references, distances, drawing numbers) where relevant, and does not invent facts
 3. References relevant Irish planning law and guidance only where you are confident it is correct
-4. Keeps a professional, respectful tone and reflects the client's own voice and personal story
-5. CRITICAL: MUST be EXACTLY ${minWords}-${maxWords} words. Do not exceed ${maxWords} words. Better to be slightly under than over.
+4. Keeps a professional, respectful tone and reflects the client's own voice and personal story. Do NOT invent personal circumstances (length of residence, family, occupation, health, feelings) that the client did not provide; if they gave no personal detail, write in a neutral resident voice
+5. CRITICAL: the letter body MUST be ${minWords}-${maxWords} words. Do not exceed ${maxWords} words. Aim for the middle of that range and stop; being under is better than over.
 6. Uses ${randomFormat} for the main points
 7. Ends by respectfully asking the Commission to refuse permission, or at minimum to request further information on the matters raised
 
