@@ -294,6 +294,14 @@ module.exports = async (req, res) => {
       }
     });
 
+    fields.forEach(field => {
+      if (Array.isArray(field.value) && field.options) {
+        const txt = field.value.map(v => optionMap[v] || v).join(', ');
+        if (field.key) formData[field.key] = txt;
+        if (field.label) formData[field.label] = txt;
+      }
+    });
+
     console.log('Form field keys:', Object.keys(formData).join(', '));
 
     let email = String(formData['Email'] || '').trim().toLowerCase();
@@ -442,7 +450,7 @@ module.exports = async (req, res) => {
 
 CLIENT INFORMATION:
 Name: ${firstName} ${lastName}${occupation ? `, ${occupation}` : ''}
-Distance of home from the site: ${distance || 'not stated'}
+Distance of home from the proposed development: ${distance || 'not stated'}
 
 PLANNING APPLICATION DETAILS:
 Case reference: VA04.324632 (ACP case file 324632)
@@ -497,7 +505,7 @@ Begin the letter now:`;
 
     const estimatedTokens = Math.ceil(maxWords * 2.0);
     const tokenCap = concernCount <= 7 ? estimatedTokens : 4096;
-    const maxTokens = Math.min(estimatedTokens, tokenCap);
+    const maxTokens = Math.min(estimatedTokens, tokenCap) + 4000; // headroom in case the model uses thinking tokens
 
     console.log(`Calling Claude API with ${maxTokens} max_tokens (${concernCount} concerns, ${minWords}-${maxWords} words, estimated ${estimatedTokens} tokens)...`);
     const apiCallStart = Date.now();
@@ -515,7 +523,12 @@ Begin the letter now:`;
       })
     );
 
-    const generatedLetter = claudeResponse.content[0].text;
+    const blocks = Array.isArray(claudeResponse.content) ? claudeResponse.content : [];
+    console.log('Claude response: stop_reason=' + claudeResponse.stop_reason + ', blocks=' + blocks.map(b => b.type).join(',') + ', usage=' + JSON.stringify(claudeResponse.usage || {}));
+    const generatedLetter = blocks.filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n').trim();
+    if (!generatedLetter) {
+      throw new Error('Claude returned no text (stop_reason=' + claudeResponse.stop_reason + '). Likely max_tokens used up before the letter was written.');
+    }
     const apiCallDuration = ((Date.now() - apiCallStart) / 1000).toFixed(1);
     console.log(`Letter generated in ${apiCallDuration}s (${generatedLetter.length} chars)`);
 
