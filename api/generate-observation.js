@@ -189,8 +189,51 @@ async function getGoogleAccessToken() {
   throw new Error('No access token in response');
 }
 
+
+// ---- Google Drive via Apps Script web app (no tokens that expire) ----
+function postFollowRedirects(urlStr, bodyStr, hops) {
+  hops = hops || 0;
+  return new Promise((resolve, reject) => {
+    if (hops > 5) return reject(new Error('Too many redirects'));
+    const u = new URL(urlStr);
+    const lib = u.protocol === 'http:' ? require('http') : require('https');
+    const isPost = hops === 0;
+    const req = lib.request({ hostname: u.hostname, port: u.port || undefined, path: u.pathname + u.search, method: isPost ? 'POST' : 'GET',
+      headers: isPost ? { 'Content-Type': 'text/plain;charset=utf-8', 'Content-Length': Buffer.byteLength(bodyStr) } : {} }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return postFollowRedirects(new URL(res.headers.location, urlStr).toString(), null, hops + 1).then(resolve, reject);
+        }
+        if (res.statusCode >= 400) return reject(new Error('HTTP ' + res.statusCode + ': ' + data.slice(0, 300)));
+        try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('Bad response from Drive script: ' + data.slice(0, 200))); }
+      });
+    });
+    req.on('error', reject);
+    if (isPost) req.write(bodyStr);
+    req.end();
+  });
+}
+
+async function uploadViaAppsScript(content, fileName, mimeType) {
+  try {
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID_SUBSTATION || process.env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!folderId) return { success: false, message: 'Folder ID not configured' };
+    const payload = JSON.stringify({ secret: process.env.DRIVE_WEBHOOK_SECRET || '', folderId, fileName, mimeType, contentBase64: Buffer.from(content, 'utf8').toString('base64') });
+    const result = await postFollowRedirects(process.env.DRIVE_WEBHOOK_URL, payload, 0);
+    if (!result || !result.ok) return { success: false, message: 'Drive script said: ' + JSON.stringify(result) };
+    console.log('Uploaded to Google Drive via Apps Script:', fileName);
+    return { success: true, id: result.id };
+  } catch (error) {
+    console.error('Drive (Apps Script) upload failed:', error.message);
+    return { success: false, message: error.message };
+  }
+}
+
 async function uploadToGoogleDrive(content, fileName, mimeType) {
   mimeType = mimeType || 'text/plain';
+  if (process.env.DRIVE_WEBHOOK_URL) return uploadViaAppsScript(content, fileName, mimeType);
   try {
     const accessToken = await getGoogleAccessToken();
     const folderId = (process.env.GOOGLE_DRIVE_FOLDER_ID_SUBSTATION || process.env.GOOGLE_DRIVE_FOLDER_ID);
