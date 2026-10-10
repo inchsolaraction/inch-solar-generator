@@ -778,7 +778,7 @@ Begin the letter now:`;
 
     const estimatedTokens = Math.ceil(maxWords * 2.0);
     const tokenCap = concernCount <= 7 ? estimatedTokens : 4096;
-    const maxTokens = Math.min(estimatedTokens, tokenCap);
+    const maxTokens = Math.min(estimatedTokens, tokenCap) + 4000; // headroom in case the model uses thinking tokens
 
     console.log(`Calling Claude API with ${maxTokens} max_tokens (${concernCount} concerns, ${minWords}-${maxWords} words, estimated ${estimatedTokens} tokens)...`);
     const apiCallStart = Date.now();
@@ -790,13 +790,18 @@ Begin the letter now:`;
       { hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' } },
       JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-sonnet-5-5',
         max_tokens: maxTokens,
         messages: [{ role: 'user', content: prompt }]
       })
     );
 
-    const generatedLetter = claudeResponse.content[0].text;
+    const blocks = Array.isArray(claudeResponse.content) ? claudeResponse.content : [];
+    console.log('Claude response: stop_reason=' + claudeResponse.stop_reason + ', blocks=' + blocks.map(b => b.type).join(',') + ', usage=' + JSON.stringify(claudeResponse.usage || {}));
+    const generatedLetter = blocks.filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n').trim();
+    if (!generatedLetter) {
+      throw new Error('Claude returned no text (stop_reason=' + claudeResponse.stop_reason + '). Likely max_tokens used up before the letter was written.');
+    }
     const apiCallDuration = ((Date.now() - apiCallStart) / 1000).toFixed(1);
     console.log(`Letter generated in ${apiCallDuration}s (${generatedLetter.length} chars)`);
 
