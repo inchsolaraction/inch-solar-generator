@@ -216,12 +216,18 @@ function postFollowRedirects(urlStr, bodyStr, hops) {
   });
 }
 
+function cleanEnv(v) { return String(v || '').trim().replace(/^["']+|["']+$/g, '').trim(); }
+
 async function uploadViaAppsScript(content, fileName, mimeType) {
   try {
     const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID_SUBSTATION || process.env.GOOGLE_DRIVE_FOLDER_ID;
     if (!folderId) return { success: false, message: 'Folder ID not configured' };
-    const payload = JSON.stringify({ secret: process.env.DRIVE_WEBHOOK_SECRET || '', folderId, fileName, mimeType, contentBase64: Buffer.from(content, 'utf8').toString('base64') });
-    const result = await postFollowRedirects(process.env.DRIVE_WEBHOOK_URL, payload, 0);
+    const payload = JSON.stringify({ secret: cleanEnv(process.env.DRIVE_WEBHOOK_SECRET), folderId, fileName, mimeType, contentBase64: Buffer.from(content, 'utf8').toString('base64') });
+    const hookUrl = cleanEnv(process.env.DRIVE_WEBHOOK_URL);
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^\s]+\/exec$/.test(hookUrl)) {
+      return { success: false, message: 'DRIVE_WEBHOOK_URL is not a valid Apps Script URL (must look like https://script.google.com/macros/s/.../exec). Length seen: ' + hookUrl.length };
+    }
+    const result = await postFollowRedirects(hookUrl, payload, 0);
     if (!result || !result.ok) return { success: false, message: 'Drive script said: ' + JSON.stringify(result) };
     console.log('Uploaded to Google Drive via Apps Script:', fileName);
     return { success: true, id: result.id };
@@ -547,8 +553,8 @@ Format requirements:
 Begin the letter now:`;
 
     const estimatedTokens = Math.ceil(maxWords * 2.0);
-    const tokenCap = concernCount <= 7 ? estimatedTokens : 4096;
-    const maxTokens = Math.min(estimatedTokens, tokenCap) + 4000; // headroom in case the model uses thinking tokens
+    // Thinking tokens count toward max_tokens, so allow generous headroom (letters were being cut off)
+    const maxTokens = Math.min(estimatedTokens + 6000, 12000);
 
     console.log(`Calling Claude API with ${maxTokens} max_tokens (${concernCount} concerns, ${minWords}-${maxWords} words, estimated ${estimatedTokens} tokens)...`);
     const apiCallStart = Date.now();
@@ -556,21 +562,46 @@ Begin the letter now:`;
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY not configured');
 
-    const claudeResponse = await makeRequest(
-      { hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' } },
-      JSON.stringify({
-        model: 'claude-sonnet-5-5',
-        max_tokens: maxTokens,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    );
+    const callClaude = async (maxTok, extraNote) => {
+      const resp = await makeRequest(
+        { hostname: 'api.anthropic.com', path: '/v1/messages', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' } },
+        JSON.stringify({
+          model: 'claude-sonnet-5-5',
+          max_tokens: maxTok,
+          messages: [{ role: 'user', content: prompt + (extraNote || '') }]
+        })
+      );
+      const bl = Array.isArray(resp.content) ? resp.content : [];
+      console.log('Claude response: stop_reason=' + resp.stop_reason + ', blocks=' + bl.map(b => b.type).join(',') + ', usage=' + JSON.stringify(resp.usage || {}));
+      const txt = bl.filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n').trim();
+      return { resp, txt };
+    };
 
-    const blocks = Array.isArray(claudeResponse.content) ? claudeResponse.content : [];
-    console.log('Claude response: stop_reason=' + claudeResponse.stop_reason + ', blocks=' + blocks.map(b => b.type).join(',') + ', usage=' + JSON.stringify(claudeResponse.usage || {}));
-    const generatedLetter = blocks.filter(b => b.type === 'text' && b.text).map(b => b.text).join('\n').trim();
+    let attempt = await callClaude(maxTokens, '');
+    let claudeResponse = attempt.resp;
+    let generatedLetter = attempt.txt;
+    let truncated = claudeResponse.stop_reason === 'max_tokens';
+
+    // If the letter ran out of space and there is time left, retry once with more room and a stricter brief
+    if ((truncated || !generatedLetter) && (Date.now() - apiCallStart) < 150000) {
+      console.log('Letter truncated or empty - retrying with larger limit and shorter sections');
+      attempt = await callClaude(Math.min(maxTokens + 4000, 16000), '\n\nIMPORTANT: a previous attempt ran out of space before finishing. Keep every section concise (about 100 words each) so the letter is COMPLETE and ends with the closing line and the name.');
+      claudeResponse = attempt.resp;
+      generatedLetter = attempt.txt;
+      truncated = claudeResponse.stop_reason === 'max_tokens';
+    }
+
     if (!generatedLetter) {
-      throw new Error('Claude returned no text (stop_reason=' + claudeResponse.stop_reason + '). Likely max_tokens used up before the letter was written.');
+      throw new Error('Claude returned no text (stop_reason=' + claudeResponse.stop_reason + ').');
+    }
+
+    if (truncated) {
+      // Safety net: never hand out a letter that stops mid-sentence
+      const lastPara = generatedLetter.lastIndexOf('\n\n');
+      if (lastPara > 200) generatedLetter = generatedLetter.slice(0, lastPara).trim();
+      generatedLetter += `\n\nI respectfully ask the Commission to refuse permission, or at a minimum to request further information on the matters raised above.\n\nIs mise,\n\n${firstName} ${lastName}`;
+      console.log('WARNING: letter still truncated; trimmed to last full paragraph and added a closing. Ask the person to check it.');
     }
     const apiCallDuration = ((Date.now() - apiCallStart) / 1000).toFixed(1);
     console.log(`Letter generated in ${apiCallDuration}s (${generatedLetter.length} chars)`);
